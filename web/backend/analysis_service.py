@@ -33,11 +33,12 @@ def map_analysis_error(error: Exception) -> ErrorResponse:
 
 class AnalysisService:
     def __init__(self, registry, chan_factory=CChan, max_bars: int = 5000,
-                 calendar_checker=has_missing_trading_period):
+                 calendar_checker=has_missing_trading_period, cache=None):
         self.registry = registry
         self.chan_factory = chan_factory
         self.max_bars = max_bars
         self.calendar_checker = calendar_checker
+        self.cache = cache
 
     def analyze(self, request):
         provider = self.registry.resolve(request.market, request.instrument,
@@ -46,7 +47,11 @@ class AnalysisService:
             available_since = getattr(provider, 'available_since', lambda _code: None)(request.instrument)
             if available_since and request.begin_time < available_since:
                 raise DateRangeUnavailableError('请求开始日期早于标的上市日期')
-            klines = provider.fetch_klines(request, self.max_bars)
+            if self.cache is None:
+                klines = provider.fetch_klines(request, self.max_bars)
+            else:
+                klines = self.cache.get(provider.source_id, request, self.max_bars,
+                                        provider.fetch_klines)
         if not klines:
             raise AnalysisFailure('NO_DATA', '所选区间没有 K 线数据')
         if len(klines) > self.max_bars:

@@ -30,9 +30,10 @@ def create_app(registry, analysis_service) -> FastAPI:
 
 def _default_app() -> FastAPI:
     from .analysis_service import AnalysisService
+    from .kline_cache import KlineCache
     from .providers.registry import default_registry
     registry = default_registry()
-    return create_app(registry, AnalysisService(registry))
+    return create_app(registry, AnalysisService(registry, cache=KlineCache()))
 
 
 app = _default_app()

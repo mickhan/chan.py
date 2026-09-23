@@ -9,6 +9,7 @@ from Common.CEnum import AUTYPE, KL_TYPE
 from Common.ChanException import CChanException, ErrCode
 from web.backend.analysis_service import AnalysisService, AnalysisFailure, map_analysis_error
 from web.backend.app import create_app
+from web.backend.kline_cache import KlineCache
 from web.backend.providers.errors import SourceTimeoutError, UnsupportedPeriodError
 from web.backend.schemas import AnalysisRequest
 from test_chan_prefetched import bar
@@ -92,3 +93,20 @@ def test_known_ipo_date_rejects_begin_even_within_same_week():
     with pytest.raises(DateRangeUnavailableError):
         service.analyze(request())
     provider.fetch_klines.assert_not_called()
+
+
+def test_analysis_reuses_persisted_klines_after_service_restart(tmp_path):
+    registry, provider, service = setup()
+    path = tmp_path / 'market.sqlite3'
+    service.cache = KlineCache(path, today=lambda: date(2026, 9, 30))
+    first = service.analyze(request())
+    restarted = AnalysisService(registry, cache=KlineCache(path, today=lambda: date(2026, 9, 30)),
+                                calendar_checker=lambda *_: False)
+    second = restarted.analyze(request())
+    assert first.meta.bar_count == second.meta.bar_count == 16
+    provider.fetch_klines.assert_called_once()
+
+
+def test_default_app_enables_local_cache():
+    from web.backend.app import app
+    assert isinstance(app.state.analysis_service.cache, KlineCache)
