@@ -56,3 +56,10 @@ class ProviderRegistry:
     def guard(self, provider: ProviderAdapter) -> RLock:
         with self._lock_init:
             return self._locks.setdefault(provider.source_id, RLock())
+
+
+def default_registry() -> ProviderRegistry:
+    from .akshare import AkShareAdapter
+    from .baostock import BaoStockAdapter
+    from .sina import SinaAdapter
+    return ProviderRegistry([BaoStockAdapter(), AkShareAdapter(), SinaAdapter()])
