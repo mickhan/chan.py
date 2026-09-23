@@ -10,6 +10,11 @@ _lock_init = Lock()
 _locks: dict[str, RLock] = {}
 
 
+def source_lock(source_id: str) -> RLock:
+    with _lock_init:
+        return _locks.setdefault(source_id, RLock())
+
+
 class ProviderRegistry:
     def __init__(self, providers: list[ProviderAdapter]):
         self.providers = list(providers)
@@ -69,8 +74,7 @@ class ProviderRegistry:
         return found
 
     def guard_source(self, source_id: str) -> RLock:
-        with _lock_init:
-            return _locks.setdefault(source_id, RLock())
+        return source_lock(source_id)
 
     def guard(self, provider: ProviderAdapter) -> RLock:
         return self.guard_source(provider.source_id)

@@ -5,6 +5,7 @@ from datetime import date
 
 from Common.CEnum import AUTYPE, DATA_SRC, KL_TYPE
 
+from web.backend.catalog_cache import CatalogCache
 from web.backend.capabilities import ADJUSTMENT_TO_AUTYPE, PERIOD_TO_KL_TYPE
 from web.backend.providers.base import read_klines
 from web.backend.instruments import filter_instruments, instrument_kind, normalize_baostock_record
@@ -18,8 +19,10 @@ class BaoStockAdapter:
     _index_periods = ("1d", "1w", "1mo")
 
     def __init__(self, catalog_loader: Callable[[], list[InstrumentOption]] | None = None, api_cls=None,
-                 metadata_loader: Callable[[str], date | None] | None = None):
+                 metadata_loader: Callable[[str], date | None] | None = None,
+                 catalog_cache: CatalogCache | None = None):
         self.catalog_loader = catalog_loader or self._load_catalog
+        self.catalog_cache = catalog_cache or (CatalogCache() if catalog_loader is None else None)
         self.api_cls = api_cls
         self.metadata_loader = metadata_loader or self._load_listing_date
         self._listing_cache: dict[str, date | None] = {}
@@ -100,7 +103,11 @@ class BaoStockAdapter:
     def search_instruments(self, market: str, query: str, limit: int) -> list[InstrumentOption]:
         if market != "cn":
             return []
-        if self._catalog_cache is None:
+        if self.catalog_cache is not None:
+            from .registry import source_lock
+            self._catalog_cache = self.catalog_cache.get(
+                self.source_id, self.catalog_loader, lambda: source_lock(self.source_id))
+        elif self._catalog_cache is None:
             self._catalog_cache = self.catalog_loader()
         return filter_instruments(self._catalog_cache, query, limit)
 
