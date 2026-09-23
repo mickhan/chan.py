@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 
 from Common.CEnum import AUTYPE, DATA_SRC, KL_TYPE
 
@@ -16,9 +17,12 @@ class BaoStockAdapter:
     _stock_periods = ("5m", "15m", "30m", "60m", "1d", "1w", "1mo")
     _index_periods = ("1d", "1w", "1mo")
 
-    def __init__(self, catalog_loader: Callable[[], list[InstrumentOption]] | None = None, api_cls=None):
+    def __init__(self, catalog_loader: Callable[[], list[InstrumentOption]] | None = None, api_cls=None,
+                 metadata_loader: Callable[[str], date | None] | None = None):
         self.catalog_loader = catalog_loader or self._load_catalog
         self.api_cls = api_cls
+        self.metadata_loader = metadata_loader or self._load_listing_date
+        self._listing_cache: dict[str, date | None] = {}
         self._catalog_cache: list[InstrumentOption] | None = None
 
     def supports(self, instrument: str, period: str, adjustment: str) -> bool:
@@ -35,14 +39,44 @@ class BaoStockAdapter:
             return []
         kinds = (instrument_kind(instrument),) if instrument else ("stock", "index")
         result = []
+        first = self.available_since(instrument) if instrument else None
         for kind in kinds:
             periods = self._stock_periods if kind == "stock" else self._index_periods
             adjustments = ["none", "qfq", "hfq"] if kind == "stock" else ["none"]
             result.extend(PeriodCapability(
                 market="cn", source=self.source_id, kind=kind, period=period,
-                adjustments=adjustments, instrument=instrument,
+                adjustments=adjustments, first_available=first if kind == "stock" else None, instrument=instrument,
             ) for period in periods)
         return result
+
+    def available_since(self, instrument: str) -> date | None:
+        if instrument_kind(instrument) != "stock":
+            return None
+        if instrument not in self._listing_cache:
+            self._listing_cache[instrument] = self.metadata_loader(instrument)
+        return self._listing_cache[instrument]
+
+    @staticmethod
+    def _load_listing_date(instrument: str) -> date | None:
+        import baostock as bs
+        from DataAPI.BaoStockAPI import CBaoStock
+        from .errors import SourceDataError
+
+        try:
+            CBaoStock.do_init()
+            rows = bs.query_stock_basic(code=instrument)
+            if rows.error_code != "0":
+                raise SourceDataError("标的上市日期读取失败")
+            if not rows.next():
+                raise SourceDataError("找不到标的上市日期")
+            value = rows.get_row_data()[rows.fields.index("ipoDate")]
+            return date.fromisoformat(value) if value else None
+        except SourceDataError:
+            raise
+        except Exception as exc:
+            raise SourceDataError("标的上市日期读取失败") from exc
+        finally:
+            CBaoStock.do_close()
 
     def _load_catalog(self) -> list[InstrumentOption]:
         import baostock as bs

@@ -21,13 +21,15 @@ def request():
 
 def setup(rows=None):
     provider = Mock(source_id='fixture')
+    provider.available_since.return_value = None
     provider.period_to_kl_type.return_value = KL_TYPE.K_DAY
     provider.adjustment_to_autype.return_value = AUTYPE.NONE
     provider.fetch_klines.return_value = rows if rows is not None else [bar(i, 10 + i % 4) for i in range(1, 17)]
     registry = Mock()
     registry.resolve.return_value = provider
     registry.guard.return_value = nullcontext()
-    return registry, provider, AnalysisService(registry)
+    registry.guard_source.return_value = nullcontext()
+    return registry, provider, AnalysisService(registry, calendar_checker=lambda begin, first, period: first > begin)
 
 
 def test_success_uses_actual_last_bar_and_guard():
@@ -73,3 +75,20 @@ def test_large_gap_before_first_bar_is_unavailable_history():
     from web.backend.providers.errors import DateRangeUnavailableError
     with pytest.raises(DateRangeUnavailableError):
         service.analyze(request())
+
+
+def test_even_short_prelisting_gap_is_unavailable():
+    from web.backend.providers.errors import DateRangeUnavailableError
+    _, _, service = setup([bar(8, 10), bar(9, 11)])
+    with pytest.raises(DateRangeUnavailableError):
+        service.analyze(request())
+
+
+def test_known_ipo_date_rejects_begin_even_within_same_week():
+    from web.backend.providers.errors import DateRangeUnavailableError
+    registry, provider, service = setup([bar(8, 10), bar(9, 11)])
+    provider.available_since.return_value = date(2026, 9, 8)
+    service.calendar_checker = lambda *_: False
+    with pytest.raises(DateRangeUnavailableError):
+        service.analyze(request())
+    provider.fetch_klines.assert_not_called()

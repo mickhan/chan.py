@@ -34,7 +34,10 @@ class ProviderRegistry:
             except ValueError:
                 return CapabilityResponse(market=market, sources=[], periods=[])
         try:
-            periods = [item for provider in self.providers for item in provider.capabilities(market, instrument)]
+            periods = []
+            for provider in self.providers:
+                with self.guard(provider):
+                    periods.extend(provider.capabilities(market, instrument))
         except ProviderError:
             raise
         except Exception as exc:
@@ -65,9 +68,12 @@ class ProviderRegistry:
                     return found
         return found
 
-    def guard(self, provider: ProviderAdapter) -> RLock:
+    def guard_source(self, source_id: str) -> RLock:
         with _lock_init:
-            return _locks.setdefault(provider.source_id, RLock())
+            return _locks.setdefault(source_id, RLock())
+
+    def guard(self, provider: ProviderAdapter) -> RLock:
+        return self.guard_source(provider.source_id)
 
 
 def default_registry() -> ProviderRegistry:

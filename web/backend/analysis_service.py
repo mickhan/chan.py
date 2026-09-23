@@ -9,6 +9,7 @@ from Common.ChanException import CChanException
 from .providers.errors import ProviderError, DateRangeUnavailableError, SourceDataError
 from .schemas import ErrorResponse
 from .serializers import serialize_chan
+from .market_calendar import has_missing_trading_period
 
 _log = logging.getLogger(__name__)
 
@@ -31,15 +32,20 @@ def map_analysis_error(error: Exception) -> ErrorResponse:
 
 
 class AnalysisService:
-    def __init__(self, registry, chan_factory=CChan, max_bars: int = 5000):
+    def __init__(self, registry, chan_factory=CChan, max_bars: int = 5000,
+                 calendar_checker=has_missing_trading_period):
         self.registry = registry
         self.chan_factory = chan_factory
         self.max_bars = max_bars
+        self.calendar_checker = calendar_checker
 
     def analyze(self, request):
         provider = self.registry.resolve(request.market, request.instrument,
                                          request.period, request.adjustment)
         with self.registry.guard(provider):
+            available_since = getattr(provider, 'available_since', lambda _code: None)(request.instrument)
+            if available_since and request.begin_time < available_since:
+                raise DateRangeUnavailableError('请求开始日期早于标的上市日期')
             klines = provider.fetch_klines(request, self.max_bars)
         if not klines:
             raise AnalysisFailure('NO_DATA', '所选区间没有 K 线数据')
@@ -47,9 +53,11 @@ class AnalysisService:
             raise AnalysisFailure('INVALID_REQUEST', f'最多可分析 {self.max_bars} 根 K 线，请缩短时间范围')
         first = klines[0].time
         first_date = date(first.year, first.month, first.day)
-        allowed_gap = 45 if request.period == '1mo' else 18 if request.period == '1w' else 10
-        if (first_date - request.begin_time).days > allowed_gap:
-            raise DateRangeUnavailableError('请求开始日期早于数据源可提供的历史范围')
+        if first_date > request.begin_time:
+            with self.registry.guard_source('baostock'):
+                missing = self.calendar_checker(request.begin_time, first_date, request.period)
+            if missing:
+                raise DateRangeUnavailableError('请求开始日期早于数据源可提供的历史范围')
         kl_type = provider.period_to_kl_type(request.period)
         autype = provider.adjustment_to_autype(request.adjustment)
         try:

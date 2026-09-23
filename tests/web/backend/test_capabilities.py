@@ -29,3 +29,12 @@ def test_unknown_instrument_capability_returns_no_options():
     result = registry.capabilities("cn", "not-a-code")
     assert result.periods == []
     assert result.sources == []
+
+
+def test_baostock_stock_capability_reports_known_ipo_date():
+    from datetime import date
+    from web.backend.providers.baostock import BaoStockAdapter
+    provider = BaoStockAdapter(metadata_loader=lambda code: date(1999, 11, 10))
+    periods = provider.capabilities('cn', 'sh.600000')
+    assert periods
+    assert all(item.first_available == date(1999, 11, 10) for item in periods)
