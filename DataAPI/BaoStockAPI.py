@@ -88,7 +88,7 @@ class CBaoStock(CCommonStockApi):
             raise Exception(rs.error_msg)
         code, code_name, ipoDate, outDate, stock_type, status = rs.get_row_data()
         self.name = code_name
-        self.is_stock = (stock_type == '1')
+        self.is_stock = (stock_type in {'1', '5'})
 
     @classmethod
     def do_init(cls):
