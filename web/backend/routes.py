@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Request
+from typing import Literal
+
+from fastapi import APIRouter, Query, Request
 
 from .schemas import AnalysisRequest, CapabilityResponse, ChartResponse, InstrumentOption
 
@@ -6,12 +8,15 @@ router = APIRouter()
 
 
 @router.get("/capabilities", response_model=CapabilityResponse)
-def get_capabilities(request: Request, market: str = "cn", instrument: str | None = None):
+def get_capabilities(request: Request, market: Literal["cn"] = "cn", instrument: str | None = None):
     return request.app.state.registry.capabilities(market, instrument)
 
 
 @router.get("/instruments", response_model=list[InstrumentOption])
-def get_instruments(request: Request, market: str, q: str, limit: int = 20):
+def get_instruments(
+    request: Request, market: Literal["cn"],
+    q: str = Query("", max_length=64), limit: int = Query(20, ge=1, le=20),
+):
     return request.app.state.registry.search(market, q, limit)
 
 

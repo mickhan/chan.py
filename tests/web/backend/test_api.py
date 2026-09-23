@@ -38,3 +38,11 @@ def test_api_routes_use_injected_services():
     })
     assert analyzed.status_code == 200
     assert analyzed.json()["meta"]["source"] == "fixture"
+
+
+def test_catalog_routes_reject_invalid_market_and_query_size():
+    client = TestClient(create_app(FakeRegistry(), FakeAnalysisService()))
+    assert client.get("/api/v1/capabilities", params={"market": "us"}).status_code == 422
+    assert client.get("/api/v1/instruments", params={"market": "us", "q": "x"}).status_code == 422
+    assert client.get("/api/v1/instruments", params={"market": "cn", "q": "x" * 65}).status_code == 422
+    assert client.get("/api/v1/instruments", params={"market": "cn", "q": "x", "limit": 21}).status_code == 422
