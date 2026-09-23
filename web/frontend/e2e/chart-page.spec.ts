@@ -17,6 +17,7 @@ test('searches, analyzes, toggles layers, and preserves form on no data', async 
   await page.locator('[name="end_time"]').fill('2026-09-02')
   await page.getByRole('button', { name: '分析图表' }).click()
   await expect(page.getByRole('img', { name: '缠论 K 线图' })).toBeVisible()
+  await expect(page.locator('canvas').first()).toBeVisible()
   await expect(page.getByText('2 根 K 线')).toBeVisible()
   await page.getByRole('button', { name: '笔', exact: true }).click()
   await expect(page.getByRole('button', { name: '笔', exact: true })).toHaveAttribute('aria-pressed', 'false')
