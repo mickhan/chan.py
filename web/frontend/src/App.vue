@@ -4,6 +4,9 @@ import { analyzeChart, fetchCapabilities, searchInstruments, ApiError } from './
 import type { AnalysisRequest, CapabilityResponse, ChartResponse, InstrumentOption } from './api/types'
 import QueryForm from './components/QueryForm.vue'
 import ChartStatus from './components/ChartStatus.vue'
+import ChartView from './chart/ChartView.vue'
+import LayerToggles from './components/LayerToggles.vue'
+import { allLayersVisible, type LayerVisibility } from './chart/buildChartOption'
 const capabilities = ref<CapabilityResponse | null>(null)
 const selectedInstrument = ref<InstrumentOption | null>(null)
 const suggestions = ref<InstrumentOption[]>([])
@@ -11,6 +14,7 @@ const response = ref<ChartResponse | null>(null)
 const state = ref<'idle' | 'loading' | 'empty' | 'error'>('idle')
 const message = ref('')
 const busy = ref(false)
+const visibleLayers = ref<LayerVisibility>({ ...allLayersVisible })
 let searchToken = 0
 onMounted(async () => { try { capabilities.value = await fetchCapabilities('cn') } catch (error) { state.value = 'error'; message.value = (error as Error).message } })
 async function search(query: string) {
@@ -39,7 +43,7 @@ async function analyze(request: AnalysisRequest) {
         <QueryForm :capabilities="capabilities" :selected-instrument="selectedInstrument" :suggestions="suggestions" :busy="busy" @search="search" @pick="pick" @clear="clear" @submit="analyze" />
         <div class="result-panel"><div class="result-heading"><div><span class="result-kicker">CHART VIEW</span><h3>{{ response ? selectedInstrument?.name : '缠论结构图' }}</h3></div><span v-if="response" class="result-meta">{{ response.meta.bar_count }} 根 K 线 · {{ response.meta.source }}</span></div>
           <ChartStatus v-if="!response || state !== 'idle'" :state="state" :message="message" />
-          <div v-else class="chart-placeholder">图表组件加载中</div>
+          <template v-else><LayerToggles v-model="visibleLayers" /><ChartView :response="response" :visible-layers="visibleLayers" /></template>
         </div>
       </section></main><footer>CHAN.PY · PERSONAL MARKET WORKSPACE</footer></div>
 </template>
