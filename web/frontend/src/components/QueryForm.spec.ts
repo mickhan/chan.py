@@ -74,3 +74,19 @@ it('does not present the remote Sina fetch limit as a chart limit', () => {
   const wrapper = mount(QueryForm, { props: { capabilities: sina, selectedInstrument: instrument, busy: false } })
   expect(wrapper.text()).not.toContain('单次最多 1970 根 K 线')
 })
+
+describe('fund choices', () => {
+  it('shows fund type in suggestions and restricts LOF to its daily capability', async () => {
+    const lof = { market: 'cn', instrument: 'sz.160706', name: '沪深300LOF', exchange: 'sz', kind: 'lof' } as const
+    const fundCapabilities: CapabilityResponse = { market: 'cn', sources: ['sina-lof'], periods: [
+      { market: 'cn', source: 'sina-lof', kind: 'lof', period: '1d', adjustments: ['none'], first_available: null, last_available: null, max_bars: 5000, instrument: lof.instrument },
+    ] }
+    const wrapper = mount(QueryForm, { props: { capabilities: fundCapabilities, selectedInstrument: null, suggestions: [lof], busy: false } })
+    expect(wrapper.get('.suggestions .instrument-kind').text()).toBe('LOF')
+    await wrapper.get('.suggestions button').trigger('click')
+    expect(wrapper.emitted('pick')?.[0]).toEqual([lof])
+    await wrapper.setProps({ selectedInstrument: lof })
+    expect(wrapper.get('#period').findAll('option').map(x => x.text())).toEqual(['1d'])
+    expect(wrapper.get('#adjustment').findAll('option').map(x => x.text())).toEqual(['不复权'])
+  })
+})

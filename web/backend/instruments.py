@@ -13,18 +13,23 @@ def instrument_kind(instrument: str) -> str:
         raise ValueError(f"无效的标的代码: {instrument}")
     if instrument.startswith("sh.000") or instrument.startswith("sz.399"):
         return "index"
+    exchange, code = instrument.split(".")
+    if (exchange == "sh" and code.startswith(("51", "52", "53", "55", "56", "58"))) or (exchange == "sz" and code.startswith("15")):
+        return "etf"
+    if (exchange == "sh" and code.startswith("50")) or (exchange == "sz" and code.startswith(("16", "18"))):
+        return "lof"
     return "stock"
 
 
 def normalize_baostock_record(row: tuple[str, ...] | list[str]) -> InstrumentOption:
-    if len(row) < 6 or row[4] not in {"1", "2"}:
-        raise ValueError("BaoStock catalog row is not a stock or index")
+    if len(row) < 6 or row[4] not in {"1", "2", "5"}:
+        raise ValueError("BaoStock catalog row is not a stock, index, or ETF")
     code, name = row[0], row[1]
     if not _CANONICAL.fullmatch(code):
         raise ValueError(f"invalid BaoStock code: {code}")
     return InstrumentOption(
         market="cn", instrument=code, name=name, exchange=code.split(".")[0],
-        kind="stock" if row[4] == "1" else "index",
+        kind={"1": "stock", "2": "index", "5": "etf"}[row[4]],
     )
 
 
@@ -51,3 +56,14 @@ def filter_instruments(
         if len(result) >= limit:
             break
     return result
+
+
+def normalize_sina_lof_record(row: dict[str, str]) -> InstrumentOption:
+    raw = str(row["代码"])
+    if not re.fullmatch(r"(sh|sz)[0-9]{6}", raw):
+        raise ValueError(f"invalid Sina fund code: {raw}")
+    exchange, code = raw[:2], raw[2:]
+    if instrument_kind(f"{exchange}.{code}") != "lof":
+        raise ValueError(f"not a LOF code: {raw}")
+    return InstrumentOption(market="cn", instrument=f"{exchange}.{code}",
+                            name=str(row["名称"]), exchange=exchange, kind="lof")

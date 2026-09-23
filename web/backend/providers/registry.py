@@ -84,4 +84,5 @@ def default_registry() -> ProviderRegistry:
     from .akshare import AkShareAdapter
     from .baostock import BaoStockAdapter
     from .sina import SinaAdapter
-    return ProviderRegistry([BaoStockAdapter(), AkShareAdapter(), SinaAdapter()])
+    from .sina_lof import SinaLofAdapter
+    return ProviderRegistry([BaoStockAdapter(), SinaLofAdapter(), AkShareAdapter(), SinaAdapter()])

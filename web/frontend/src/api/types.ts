@@ -1,6 +1,6 @@
 export interface AnalysisRequest { market: 'cn'; instrument: string; period: string; begin_time: string; end_time: string; adjustment: string }
-export interface InstrumentOption { market: string; instrument: string; name: string; exchange: string; kind: 'stock' | 'index' }
-export interface PeriodCapability { market: string; source: string; kind: 'stock' | 'index'; period: string; adjustments: string[]; first_available: string | null; last_available: string | null; max_bars: number; instrument: string | null }
+export interface InstrumentOption { market: string; instrument: string; name: string; exchange: string; kind: 'stock' | 'index' | 'etf' | 'lof' }
+export interface PeriodCapability { market: string; source: string; kind: 'stock' | 'index' | 'etf' | 'lof'; period: string; adjustments: string[]; first_available: string | null; last_available: string | null; max_bars: number; instrument: string | null }
 export interface CapabilityResponse { market: string; sources: string[]; periods: PeriodCapability[] }
 export interface Candle { time: string; open: number; high: number; low: number; close: number; volume: number }
 export interface MacdPoint { time: string; diff: number; dea: number; histogram: number }

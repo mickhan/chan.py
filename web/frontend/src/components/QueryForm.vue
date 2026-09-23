@@ -34,6 +34,7 @@ function submit() {
     begin_time: start.value, end_time: end.value, adjustment: adjustment.value })
 }
 function pick(option: InstrumentOption) { search.value = ''; emit('pick', option) }
+function kindLabel(kind: InstrumentOption['kind']) { return ({ stock: '股票', index: '指数', etf: 'ETF', lof: 'LOF' })[kind] }
 function dateString(date: Date) { return date.toISOString().slice(0, 10) }
 function calendarMonthsAgo(anchor: string, months: number) {
   const [year, month, day] = anchor.split('-').map(Number)
@@ -63,10 +64,10 @@ function selectRange(range: '30d' | 'quarter' | 'year') {
   <form class="query-form" @submit.prevent="submit">
     <div class="field instrument-field">
       <label for="instrument-search">标的</label>
-      <div v-if="selectedInstrument" class="selected-instrument"><span>{{ selectedInstrument.name }} <small>{{ selectedInstrument.instrument }}</small></span><button type="button" @click="emit('clear')">更换</button></div>
+      <div v-if="selectedInstrument" class="selected-instrument"><span>{{ selectedInstrument.name }} <small>{{ selectedInstrument.instrument }}</small> <span class="instrument-kind">{{ kindLabel(selectedInstrument.kind) }}</span></span><button type="button" @click="emit('clear')">更换</button></div>
       <template v-else>
         <input id="instrument-search" v-model="search" autocomplete="off" placeholder="输入代码或名称，如 000001" @input="emit('search', search)" />
-        <ul v-if="suggestions?.length" class="suggestions"><li v-for="option in suggestions" :key="option.instrument"><button type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small></button></li></ul>
+        <ul v-if="suggestions?.length" class="suggestions"><li v-for="option in suggestions" :key="option.instrument"><button type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small> <span class="instrument-kind">{{ kindLabel(option.kind) }}</span></button></li></ul>
       </template>
     </div>
     <div class="field"><label for="period">周期</label><select id="period" v-model="period" :disabled="!selectedInstrument"><option v-for="item in periods" :key="item" :value="item">{{ item }}</option></select></div>
@@ -82,7 +83,7 @@ function selectRange(range: '30d' | 'quarter' | 'year') {
     </div>
     <div v-if="!selectedInstrument && !search && recentInstruments?.length" class="quick-picks recent-instruments" aria-label="最近使用的标的">
       <span>最近分析</span>
-      <button v-for="option in recentInstruments" :key="option.instrument" type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small></button>
+      <button v-for="option in recentInstruments" :key="option.instrument" type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small> <span class="instrument-kind">{{ kindLabel(option.kind) }}</span></button>
     </div>
     <p v-if="start > end" class="field-error">开始日期不能晚于结束日期</p>
   </form>

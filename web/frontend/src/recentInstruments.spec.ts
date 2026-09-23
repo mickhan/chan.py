@@ -23,3 +23,13 @@ describe('recent instruments', () => {
     expect(readRecentInstruments()).toEqual([])
   })
 })
+
+describe('fund choices', () => {
+  it('restores ETF and LOF from recent instruments', () => {
+    const etf: InstrumentOption = { market: 'cn', instrument: 'sh.510300', name: '沪深300ETF', exchange: 'sh', kind: 'etf' }
+    const lof: InstrumentOption = { market: 'cn', instrument: 'sz.160706', name: '沪深300LOF', exchange: 'sz', kind: 'lof' }
+    rememberInstrument(etf)
+    rememberInstrument(lof)
+    expect(readRecentInstruments()).toEqual([lof, etf])
+  })
+})

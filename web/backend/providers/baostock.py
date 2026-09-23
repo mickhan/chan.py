@@ -35,25 +35,27 @@ class BaoStockAdapter:
             return False
         if kind == "index":
             return period in self._index_periods and adjustment == "none"
-        return period in self._stock_periods and adjustment in ADJUSTMENT_TO_AUTYPE
+        return kind in {"stock", "etf"} and period in self._stock_periods and adjustment in ADJUSTMENT_TO_AUTYPE
 
     def capabilities(self, market: str, instrument: str | None = None) -> list[PeriodCapability]:
         if market != "cn":
             return []
-        kinds = (instrument_kind(instrument),) if instrument else ("stock", "index")
+        kinds = (instrument_kind(instrument),) if instrument else ("stock", "index", "etf")
+        if kinds == ("lof",):
+            return []
         result = []
         first = self.available_since(instrument) if instrument else None
         for kind in kinds:
-            periods = self._stock_periods if kind == "stock" else self._index_periods
-            adjustments = ["none", "qfq", "hfq"] if kind == "stock" else ["none"]
+            periods = self._stock_periods if kind in {"stock", "etf"} else self._index_periods
+            adjustments = ["none", "qfq", "hfq"] if kind in {"stock", "etf"} else ["none"]
             result.extend(PeriodCapability(
                 market="cn", source=self.source_id, kind=kind, period=period,
-                adjustments=adjustments, first_available=first if kind == "stock" else None, instrument=instrument,
+                adjustments=adjustments, first_available=first if kind in {"stock", "etf"} else None, instrument=instrument,
             ) for period in periods)
         return result
 
     def available_since(self, instrument: str) -> date | None:
-        if instrument_kind(instrument) != "stock":
+        if instrument_kind(instrument) not in {"stock", "etf"}:
             return None
         if instrument not in self._listing_cache:
             self._listing_cache[instrument] = self.metadata_loader(instrument)
@@ -106,7 +108,7 @@ class BaoStockAdapter:
         if self.catalog_cache is not None:
             from .registry import source_lock
             self._catalog_cache = self.catalog_cache.get(
-                self.source_id, self.catalog_loader, lambda: source_lock(self.source_id))
+                "baostock-v2", self.catalog_loader, lambda: source_lock(self.source_id))
         elif self._catalog_cache is None:
             self._catalog_cache = self.catalog_loader()
         return filter_instruments(self._catalog_cache, query, limit)

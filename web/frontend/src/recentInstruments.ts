@@ -9,7 +9,7 @@ function isInstrumentOption(value: unknown): value is InstrumentOption {
   return option.market === 'cn' &&
     typeof option.instrument === 'string' && option.instrument.length > 0 &&
     typeof option.name === 'string' && typeof option.exchange === 'string' &&
-    (option.kind === 'stock' || option.kind === 'index')
+    (option.kind === 'stock' || option.kind === 'index' || option.kind === 'etf' || option.kind === 'lof')
 }
 
 export function readRecentInstruments(): InstrumentOption[] {

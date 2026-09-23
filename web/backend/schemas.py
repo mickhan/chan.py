@@ -30,13 +30,13 @@ class InstrumentOption(StrictModel):
     instrument: str
     name: str
     exchange: str
-    kind: Literal["stock", "index"]
+    kind: Literal["stock", "index", "etf", "lof"]
 
 
 class PeriodCapability(StrictModel):
     market: str
     source: str
-    kind: Literal["stock", "index"]
+    kind: Literal["stock", "index", "etf", "lof"]
     period: str
     adjustments: list[str]
     first_available: date | None = None
