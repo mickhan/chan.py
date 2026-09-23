@@ -46,3 +46,13 @@ def test_catalog_routes_reject_invalid_market_and_query_size():
     assert client.get("/api/v1/instruments", params={"market": "us", "q": "x"}).status_code == 422
     assert client.get("/api/v1/instruments", params={"market": "cn", "q": "x" * 65}).status_code == 422
     assert client.get("/api/v1/instruments", params={"market": "cn", "q": "x", "limit": 21}).status_code == 422
+
+
+def test_invalid_analysis_request_has_stable_error_code():
+    client = TestClient(create_app(FakeRegistry(), FakeAnalysisService()))
+    response = client.post('/api/v1/analysis', json={
+        'market': 'cn', 'instrument': 'sh.000001', 'period': '1d',
+        'begin_time': '2026-09-23', 'end_time': '2026-09-01', 'adjustment': 'none',
+    })
+    assert response.status_code == 422
+    assert response.json()['code'] == 'INVALID_REQUEST'
