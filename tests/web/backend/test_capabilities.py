@@ -1,3 +1,5 @@
+from datetime import date
+
 from web.backend.providers.akshare import AkShareAdapter
 from web.backend.providers.baostock import BaoStockAdapter
 from web.backend.providers.registry import ProviderRegistry
@@ -12,7 +14,7 @@ def test_baostock_index_has_no_intraday_capability():
 
 
 def test_stock_capabilities_follow_each_provider():
-    bao = BaoStockAdapter(catalog_loader=lambda: [])
+    bao = BaoStockAdapter(catalog_loader=lambda: [], metadata_loader=lambda _code: date(1999, 11, 10))
     ak = AkShareAdapter(catalog_loader=lambda: [])
     assert bao.supports("sh.600000", "30m", "qfq") is True
     assert ak.supports("sh.600000", "30m", "qfq") is False
