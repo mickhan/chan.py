@@ -56,3 +56,14 @@ def test_invalid_analysis_request_has_stable_error_code():
     })
     assert response.status_code == 422
     assert response.json()['code'] == 'INVALID_REQUEST'
+
+
+def test_catalog_source_failure_is_structured():
+    from web.backend.providers.errors import SourceTimeoutError
+    class FailingRegistry(FakeRegistry):
+        def search(self, market, query, limit=20):
+            raise SourceTimeoutError('upstream timeout')
+    client = TestClient(create_app(FailingRegistry(), FakeAnalysisService()))
+    response = client.get('/api/v1/instruments', params={'market': 'cn', 'q': '000001'})
+    assert response.status_code == 504
+    assert response.json()['code'] == 'SOURCE_TIMEOUT'

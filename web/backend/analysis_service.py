@@ -1,11 +1,12 @@
 """Fetch one period, compute Chan structures, and return a stable chart DTO."""
 import logging
+from datetime import date
 
 from Chan import CChan
 from ChanConfig import CChanConfig
 from Common.ChanException import CChanException
 
-from .providers.errors import ProviderError
+from .providers.errors import ProviderError, DateRangeUnavailableError, SourceDataError
 from .schemas import ErrorResponse
 from .serializers import serialize_chan
 
@@ -21,7 +22,8 @@ class AnalysisFailure(Exception):
 
 def map_analysis_error(error: Exception) -> ErrorResponse:
     if isinstance(error, (ProviderError, AnalysisFailure)):
-        return ErrorResponse(code=error.code, message=error.message,
+        message = '行情数据源读取失败，请稍后重试' if isinstance(error, SourceDataError) else error.message
+        return ErrorResponse(code=error.code, message=message,
                              supported_options=getattr(error, 'supported_options', None))
     if isinstance(error, CChanException):
         return ErrorResponse(code='ANALYSIS_ERROR', message='缠论计算失败，请调整标的或时间范围后重试')
@@ -43,6 +45,11 @@ class AnalysisService:
             raise AnalysisFailure('NO_DATA', '所选区间没有 K 线数据')
         if len(klines) > self.max_bars:
             raise AnalysisFailure('INVALID_REQUEST', f'最多可分析 {self.max_bars} 根 K 线，请缩短时间范围')
+        first = klines[0].time
+        first_date = date(first.year, first.month, first.day)
+        allowed_gap = 45 if request.period == '1mo' else 18 if request.period == '1w' else 10
+        if (first_date - request.begin_time).days > allowed_gap:
+            raise DateRangeUnavailableError('请求开始日期早于数据源可提供的历史范围')
         kl_type = provider.period_to_kl_type(request.period)
         autype = provider.adjustment_to_autype(request.adjustment)
         try:

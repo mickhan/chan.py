@@ -3,14 +3,16 @@ from __future__ import annotations
 from threading import Lock, RLock
 
 from .base import ProviderAdapter
-from .errors import UnsupportedPeriodError
+from .errors import ProviderError, SourceDataError, UnsupportedPeriodError
+
+
+_lock_init = Lock()
+_locks: dict[str, RLock] = {}
 
 
 class ProviderRegistry:
     def __init__(self, providers: list[ProviderAdapter]):
         self.providers = list(providers)
-        self._lock_init = Lock()
-        self._locks: dict[str, RLock] = {}
 
     def resolve(self, market: str, instrument: str, period: str, adjustment: str) -> ProviderAdapter:
         if market == "cn":
@@ -31,7 +33,12 @@ class ProviderRegistry:
                 instrument_kind(instrument)
             except ValueError:
                 return CapabilityResponse(market=market, sources=[], periods=[])
-        periods = [item for provider in self.providers for item in provider.capabilities(market, instrument)]
+        try:
+            periods = [item for provider in self.providers for item in provider.capabilities(market, instrument)]
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise SourceDataError('行情能力读取失败') from exc
         sources = list(dict.fromkeys(item.source for item in periods))
         return CapabilityResponse(market=market, sources=sources, periods=periods)
 
@@ -44,7 +51,12 @@ class ProviderRegistry:
         seen = set()
         for provider in self.providers:
             with self.guard(provider):
-                options = provider.search_instruments(market, query, limit)
+                try:
+                    options = provider.search_instruments(market, query, limit)
+                except ProviderError:
+                    raise
+                except Exception as exc:
+                    raise SourceDataError('标的目录读取失败') from exc
             for item in options:
                 if item.instrument not in seen:
                     seen.add(item.instrument)
@@ -54,8 +66,8 @@ class ProviderRegistry:
         return found
 
     def guard(self, provider: ProviderAdapter) -> RLock:
-        with self._lock_init:
-            return self._locks.setdefault(provider.source_id, RLock())
+        with _lock_init:
+            return _locks.setdefault(provider.source_id, RLock())
 
 
 def default_registry() -> ProviderRegistry:

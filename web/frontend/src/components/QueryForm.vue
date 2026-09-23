@@ -14,11 +14,20 @@ const options = computed(() => (props.capabilities?.periods ?? []).filter(item =
   props.selectedInstrument && item.kind === props.selectedInstrument.kind &&
   (!item.instrument || item.instrument === props.selectedInstrument.instrument)))
 const periods = computed(() => [...new Set(options.value.map(item => item.period))])
-const adjustments = computed(() => options.value.find(item => item.period === period.value)?.adjustments ?? [])
+const currentCapability = computed(() => options.value.find(item => item.period === period.value))
+const adjustments = computed(() => currentCapability.value?.adjustments ?? [])
 watch(periods, value => { if (!value.includes(period.value)) period.value = value[0] ?? '' }, { immediate: true })
 watch(adjustments, value => { if (!value.includes(adjustment.value)) adjustment.value = value[0] ?? '' }, { immediate: true })
+watch(currentCapability, value => {
+  if (!value) return
+  if (value.first_available && start.value < value.first_available) start.value = value.first_available
+  if (value.last_available && end.value > value.last_available) end.value = value.last_available
+  if (start.value > end.value && value.first_available) start.value = value.first_available
+}, { immediate: true })
 const canSubmit = computed(() => !!props.selectedInstrument && !!period.value && !!adjustment.value &&
-  start.value <= end.value && !props.busy)
+  start.value <= end.value && !props.busy &&
+  (!currentCapability.value?.first_available || start.value >= currentCapability.value.first_available) &&
+  (!currentCapability.value?.last_available || end.value <= currentCapability.value.last_available))
 function submit() {
   if (!canSubmit.value || !props.selectedInstrument) return
   emit('submit', { market: 'cn', instrument: props.selectedInstrument.instrument, period: period.value,
@@ -38,9 +47,10 @@ function pick(option: InstrumentOption) { search.value = ''; emit('pick', option
     </div>
     <div class="field"><label for="period">周期</label><select id="period" v-model="period" :disabled="!selectedInstrument"><option v-for="item in periods" :key="item" :value="item">{{ item }}</option></select></div>
     <div class="field"><label for="adjustment">复权</label><select id="adjustment" v-model="adjustment" :disabled="!selectedInstrument"><option v-for="item in adjustments" :key="item" :value="item">{{ item === 'none' ? '不复权' : item }}</option></select></div>
-    <div class="field"><label for="begin_time">开始日期</label><input id="begin_time" v-model="start" name="begin_time" type="date" /></div>
-    <div class="field"><label for="end_time">结束日期</label><input id="end_time" v-model="end" name="end_time" type="date" /></div>
+    <div class="field"><label for="begin_time">开始日期</label><input id="begin_time" v-model="start" name="begin_time" type="date" :min="currentCapability?.first_available ?? undefined" :max="currentCapability?.last_available ?? undefined" /></div>
+    <div class="field"><label for="end_time">结束日期</label><input id="end_time" v-model="end" name="end_time" type="date" :min="currentCapability?.first_available ?? undefined" :max="currentCapability?.last_available ?? undefined" /></div>
     <button class="analyze-button" type="submit" :disabled="!canSubmit">{{ busy ? '分析中…' : '分析图表' }}</button>
     <p v-if="start > end" class="field-error">开始日期不能晚于结束日期</p>
+    <p v-if="currentCapability" class="capability-hint">{{ currentCapability.source }} · 单次最多 {{ currentCapability.max_bars }} 根 K 线<span v-if="currentCapability.first_available && currentCapability.last_available"> · 可用日期 {{ currentCapability.first_available }} 至 {{ currentCapability.last_available }}</span></p>
   </form>
 </template>

@@ -66,3 +66,10 @@ def test_api_returns_safe_structured_errors():
     assert response.status_code == 404
     assert response.json()['code'] == 'NO_DATA'
     assert 'Traceback' not in response.text
+
+
+def test_large_gap_before_first_bar_is_unavailable_history():
+    registry, provider, service = setup([bar(20, 10), bar(21, 11)])
+    from web.backend.providers.errors import DateRangeUnavailableError
+    with pytest.raises(DateRangeUnavailableError):
+        service.analyze(request())

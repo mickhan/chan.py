@@ -19,3 +19,13 @@ describe('QueryForm', () => {
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 })
+
+describe('reported availability', () => {
+  it('sets date controls to the selected provider range', async () => {
+    const bounded = { ...capabilities, periods: [{ ...capabilities.periods[0], first_available: '2026-09-01', last_available: '2026-09-10', max_bars: 1970 }] }
+    const wrapper = mount(QueryForm, { props: { capabilities: bounded, selectedInstrument: { market: 'cn', instrument: 'sh.000001', name: '上证指数', exchange: 'sh', kind: 'index' }, busy: false } })
+    expect(wrapper.get('[name="begin_time"]').attributes('min')).toBe('2026-09-01')
+    expect(wrapper.get('[name="end_time"]').attributes('max')).toBe('2026-09-10')
+    expect(wrapper.text()).toContain('1970')
+  })
+})

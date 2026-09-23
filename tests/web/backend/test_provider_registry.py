@@ -131,3 +131,11 @@ def test_akshare_fetch_converts_canonical_stock_code():
     adapter = AkShareAdapter(catalog_loader=lambda: [], api_cls=FakeAPI)
     assert adapter.fetch_klines(request, max_bars=5000) == ["bar"]
     assert received == ["init", "000001", "close"]
+
+
+def test_registry_guards_share_process_wide_source_lock():
+    from web.backend.providers.registry import ProviderRegistry
+    class Provider:
+        source_id = 'baostock'
+    provider = Provider()
+    assert ProviderRegistry([provider]).guard(provider) is ProviderRegistry([provider]).guard(provider)

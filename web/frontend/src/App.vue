@@ -41,7 +41,7 @@ async function analyze(request: AnalysisRequest) {
     <main><section class="hero"><div><p class="eyebrow">A-SHARE MARKET · CHAN THEORY</p><h1>让走势结构，<br/><em>清晰可见。</em></h1><p class="hero-description">选择标的与时间范围，探索 K 线、笔、线段、中枢和买卖点。</p></div><div class="hero-art"><div class="art-grid"></div><div class="art-line"></div><span>走势 · 结构 · 决策</span></div></section>
       <section class="workbench"><div class="section-heading"><div><p class="eyebrow">WORKSPACE / 01</p><h2>行情分析</h2></div><span class="section-note">数据时间 · Asia/Shanghai</span></div>
         <QueryForm :capabilities="capabilities" :selected-instrument="selectedInstrument" :suggestions="suggestions" :busy="busy" @search="search" @pick="pick" @clear="clear" @submit="analyze" />
-        <div class="result-panel"><div class="result-heading"><div><span class="result-kicker">CHART VIEW</span><h3>{{ response ? selectedInstrument?.name : '缠论结构图' }}</h3></div><span v-if="response" class="result-meta">{{ response.meta.bar_count }} 根 K 线 · {{ response.meta.source }}</span></div>
+        <div class="result-panel"><div class="result-heading"><div><span class="result-kicker">CHART VIEW</span><h3>{{ response ? selectedInstrument?.name : '缠论结构图' }}</h3></div><span v-if="response" class="result-meta">{{ response.meta.bar_count }} 根 K 线 · {{ response.meta.source }}<br/>{{ response.meta.first_bar.replace('T', ' ').slice(0, 16) }} 至 {{ response.meta.last_bar.replace('T', ' ').slice(0, 16) }}</span></div>
           <ChartStatus v-if="!response || state !== 'idle'" :state="state" :message="message" />
           <template v-else><LayerToggles v-model="visibleLayers" /><ChartView :response="response" :visible-layers="visibleLayers" /></template>
         </div>
