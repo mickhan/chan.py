@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import QueryForm from './QueryForm.vue'
 import type { CapabilityResponse } from '../api/types'
@@ -27,5 +27,43 @@ describe('reported availability', () => {
     expect(wrapper.get('[name="begin_time"]').attributes('min')).toBe('2026-09-01')
     expect(wrapper.get('[name="end_time"]').attributes('max')).toBe('2026-09-10')
     expect(wrapper.text()).toContain('1970')
+  })
+})
+
+
+afterEach(() => vi.useRealTimers())
+
+describe('quick selections', () => {
+  const instrument = { market: 'cn', instrument: 'sh.000001', name: '上证指数', exchange: 'sh', kind: 'index' } as const
+
+  it('picks a previously analyzed instrument without typing a search', async () => {
+    const wrapper = mount(QueryForm, { props: { capabilities, selectedInstrument: null, recentInstruments: [instrument], busy: false } })
+    await wrapper.get('[aria-label="最近使用的标的"]').get('button').trigger('click')
+    expect(wrapper.emitted('pick')?.[0]).toEqual([instrument])
+    expect(wrapper.emitted('search')).toBeUndefined()
+  })
+
+  it('fills rolling ranges without submitting', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-23T02:00:00Z'))
+    const wrapper = mount(QueryForm, { props: { capabilities, selectedInstrument: instrument, busy: false } })
+    await wrapper.get('button[aria-label="最近30天"]').trigger('click')
+    expect((wrapper.get('[name="begin_time"]').element as HTMLInputElement).value).toBe('2026-08-25')
+    expect((wrapper.get('[name="end_time"]').element as HTMLInputElement).value).toBe('2026-09-23')
+    await wrapper.get('button[aria-label="最近1季度"]').trigger('click')
+    expect((wrapper.get('[name="begin_time"]').element as HTMLInputElement).value).toBe('2026-06-24')
+    await wrapper.get('button[aria-label="最近1年"]').trigger('click')
+    expect((wrapper.get('[name="begin_time"]').element as HTMLInputElement).value).toBe('2025-09-24')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('clips a shortcut to the provider availability window', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-23T02:00:00Z'))
+    const bounded = { ...capabilities, periods: [{ ...capabilities.periods[0], first_available: '2026-09-01', last_available: '2026-09-10' }] }
+    const wrapper = mount(QueryForm, { props: { capabilities: bounded, selectedInstrument: instrument, busy: false } })
+    await wrapper.get('button[aria-label="最近1年"]').trigger('click')
+    expect((wrapper.get('[name="begin_time"]').element as HTMLInputElement).value).toBe('2026-09-01')
+    expect((wrapper.get('[name="end_time"]').element as HTMLInputElement).value).toBe('2026-09-10')
   })
 })
