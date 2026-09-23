@@ -1,10 +1,16 @@
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse
+
+from .analysis_service import map_analysis_error
+from .providers.errors import ProviderError
 
 from .schemas import AnalysisRequest, CapabilityResponse, ChartResponse, InstrumentOption
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 
 @router.get("/capabilities", response_model=CapabilityResponse)
@@ -22,4 +28,14 @@ def get_instruments(
 
 @router.post("/analysis", response_model=ChartResponse)
 def analyze(request_body: AnalysisRequest, request: Request):
-    return request.app.state.analysis_service.analyze(request_body)
+    try:
+        return request.app.state.analysis_service.analyze(request_body)
+    except Exception as exc:
+        error = map_analysis_error(exc)
+        if error.code == "ANALYSIS_ERROR":
+            _log.exception("Analysis request failed")
+        status = {"INVALID_REQUEST": 400, "UNSUPPORTED_PERIOD": 400,
+                  "DATE_RANGE_UNAVAILABLE": 400, "NO_DATA": 404,
+                  "SOURCE_TIMEOUT": 504, "SOURCE_ERROR": 502,
+                  "ANALYSIS_ERROR": 500}[error.code]
+        return JSONResponse(status_code=status, content=error.model_dump(exclude_none=True))

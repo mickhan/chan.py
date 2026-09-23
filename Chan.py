@@ -26,6 +26,7 @@ class CChan:
         lv_list=None,
         config=None,
         autype: AUTYPE = AUTYPE.QFQ,
+        defer_load: bool = False,
     ):
         if lv_list is None:
             lv_list = [KL_TYPE.K_DAY, KL_TYPE.K_60M]
@@ -48,7 +49,7 @@ class CChan:
 
         self.do_init()
 
-        if not config.trigger_step:
+        if not defer_load and not config.trigger_step:
             for _ in self.load():
                 ...
 
