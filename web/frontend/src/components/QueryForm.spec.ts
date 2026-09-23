@@ -26,7 +26,6 @@ describe('reported availability', () => {
     const wrapper = mount(QueryForm, { props: { capabilities: bounded, selectedInstrument: { market: 'cn', instrument: 'sh.000001', name: '上证指数', exchange: 'sh', kind: 'index' }, busy: false } })
     expect(wrapper.get('[name="begin_time"]').attributes('min')).toBe('2026-09-01')
     expect(wrapper.get('[name="end_time"]').attributes('max')).toBe('2026-09-10')
-    expect(wrapper.text()).toContain('1970')
   })
 })
 
@@ -66,4 +65,12 @@ describe('quick selections', () => {
     expect((wrapper.get('[name="begin_time"]').element as HTMLInputElement).value).toBe('2026-09-01')
     expect((wrapper.get('[name="end_time"]').element as HTMLInputElement).value).toBe('2026-09-10')
   })
+})
+
+
+it('does not present the remote Sina fetch limit as a chart limit', () => {
+  const sina = { ...capabilities, periods: [{ ...capabilities.periods[0], source: 'sina', first_available: null, last_available: null, max_bars: 1970 }] }
+  const instrument = { market: 'cn', instrument: 'sh.000001', name: '上证指数', exchange: 'sh', kind: 'index' } as const
+  const wrapper = mount(QueryForm, { props: { capabilities: sina, selectedInstrument: instrument, busy: false } })
+  expect(wrapper.text()).not.toContain('单次最多 1970 根 K 线')
 })

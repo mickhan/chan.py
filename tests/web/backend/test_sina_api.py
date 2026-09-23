@@ -105,28 +105,29 @@ def test_sina_empty_and_timeout_have_distinct_outcomes():
         SinaAdapter(http_get=timeout, now=now).fetch_klines(request, max_bars=5000)
 
 
-def test_sina_provider_reports_real_window_and_custom_source_loads():
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
+def test_sina_capability_does_not_treat_remote_window_as_local_history_limit():
+    from web.backend.providers.sina import SinaAdapter
 
+    def unexpected_fetch(**_kwargs):
+        raise AssertionError('capabilities should not fetch live bars')
+
+    adapter = SinaAdapter(http_get=unexpected_fetch)
+    capability = adapter.capabilities('cn', 'sh.000001')[0]
+    assert capability.source == 'sina'
+    assert capability.period == '30m'
+    assert capability.first_available is None
+    assert capability.last_available is None
+    assert capability.max_bars == 5000
+
+
+def test_sina_custom_source_loads():
     from Chan import CChan
     from ChanConfig import CChanConfig
     from Common.CEnum import KL_TYPE
     from DataAPI.SinaAPI import CSina
-    from web.backend.providers.sina import SinaAdapter
 
-    adapter = SinaAdapter(
-        http_get=lambda **kwargs: FakeResponse(FIXTURE.read_text()),
-        now=lambda: datetime(2026, 9, 2, tzinfo=ZoneInfo("Asia/Shanghai")),
-    )
-    assert adapter.supports("sh.000001", "30m", "none")
-    assert not adapter.supports("sh.600000", "30m", "none")
-    capability = adapter.capabilities("cn", "sh.000001")[0]
-    assert capability.first_available.isoformat() == "2026-09-01"
-    assert capability.last_available.isoformat() == "2026-09-01"
-    assert capability.source == "sina"
-    chan = CChan(code="sh.000001", data_src="custom:SinaAPI.CSina",
-                 lv_list=[KL_TYPE.K_30M], config=CChanConfig({"trigger_step": True}))
+    chan = CChan(code='sh.000001', data_src='custom:SinaAPI.CSina',
+                 lv_list=[KL_TYPE.K_30M], config=CChanConfig({'trigger_step': True}))
     assert chan.GetStockAPI() is CSina
 
 

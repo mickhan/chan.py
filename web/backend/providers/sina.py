@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
-
 from Common.CEnum import AUTYPE, KL_TYPE
 from DataAPI.SinaAPI import CSina
 
@@ -31,21 +29,9 @@ class SinaAdapter:
     def capabilities(self, market: str, instrument: str | None = None) -> list[PeriodCapability]:
         if market != "cn" or (instrument and not self.supports(instrument, "30m", "none")):
             return []
-        first = last = None
-        if instrument:
-            bars = read_klines(
-                self.api_cls, 1970, code=instrument, k_type=KL_TYPE.K_30M,
-                begin_date=None, end_date=None, autype=AUTYPE.NONE,
-                http_get=self.http_get, now=self.now,
-            )
-            if not bars:
-                return []
-            first = date(bars[0].time.year, bars[0].time.month, bars[0].time.day)
-            last = date(bars[-1].time.year, bars[-1].time.month, bars[-1].time.day)
         return [PeriodCapability(
             market="cn", source=self.source_id, kind="index", period="30m",
-            adjustments=["none"], first_available=first, last_available=last,
-            max_bars=1970, instrument=instrument,
+            adjustments=["none"], max_bars=5000, instrument=instrument,
         )]
 
     def search_instruments(self, market, query, limit):

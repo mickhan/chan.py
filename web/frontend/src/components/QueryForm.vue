@@ -85,6 +85,5 @@ function selectRange(range: '30d' | 'quarter' | 'year') {
       <button v-for="option in recentInstruments" :key="option.instrument" type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small></button>
     </div>
     <p v-if="start > end" class="field-error">开始日期不能晚于结束日期</p>
-    <p v-if="currentCapability" class="capability-hint">{{ currentCapability.source }} · 单次最多 {{ currentCapability.max_bars }} 根 K 线<span v-if="currentCapability.first_available && currentCapability.last_available"> · 可用日期 {{ currentCapability.first_available }} 至 {{ currentCapability.last_available }}</span></p>
   </form>
 </template>
