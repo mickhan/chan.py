@@ -4,3 +4,4 @@
 .chart-view{height:500px;width:100%}.layer-toggles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.layer-toggles button{padding:6px 12px;background:#f6faf7;border:1px solid #e1eae4;border-radius:16px;color:#7b948a;font-size:11px;cursor:pointer}.layer-toggles button.active{background:#e7f4ed;border-color:#b4d9c5;color:#147558}
 
 .capability-hint{grid-column:1/-1;margin:0;color:#849c92;font-size:10px}.result-meta{text-align:right;line-height:1.7}
+.chart-zoom-controls{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#849c92;font-size:11px;margin:2px 0 8px}.chart-zoom-buttons{display:flex;gap:6px}.chart-zoom-buttons button{width:30px;height:28px;border:1px solid #dce8e1;border-radius:7px;background:#fbfdfb;color:#2a6e59;font-size:18px;line-height:1;cursor:pointer}.chart-zoom-buttons button:hover{background:#e7f4ed;border-color:#b4d9c5}

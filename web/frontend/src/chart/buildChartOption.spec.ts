@@ -11,6 +11,13 @@ describe('chart options', () => {
     expect(option.dataZoom).toBeDefined()
     expect(option.axisPointer).toBeDefined()
   })
+  it('uses wheel movement for horizontal panning without wheel zoom', () => {
+    const option = buildChartOption(fixture, allLayersVisible) as any
+    const inside = option.dataZoom.find((item: any) => item.type === 'inside')
+    expect(inside.zoomOnMouseWheel).toBe(false)
+    expect(inside.moveOnMouseWheel).toBe(true)
+    expect(inside.xAxisIndex).toEqual([0, 1])
+  })
   it('maps overlays and toggles without changing candles', () => {
     const option = buildChartOption(fixture, allLayersVisible) as any
     expect(option.series.find((s: any) => s.id === 'bi').markLine.data[0][0].coord).toEqual([t0, 9])

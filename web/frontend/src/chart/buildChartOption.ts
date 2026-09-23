@@ -35,7 +35,7 @@ export function buildChartOption(response: ChartResponse, visible: LayerVisibili
     yAxis: [{ type: 'value', scale: true, splitLine: { lineStyle: { color: '#edf2ef' } }, axisLabel: { color: '#779087' } },
       { type: 'value', scale: true, gridIndex: 1, splitLine: { lineStyle: { color: '#edf2ef' } }, axisLabel: { color: '#779087' } }],
     axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: '#335e51' } },
-    dataZoom: [{ type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 }, { type: 'slider', xAxisIndex: [0, 1], bottom: 4, height: 18, borderColor: '#dce8e1', fillerColor: '#d5eee4' }],
+    dataZoom: [{ type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: true }, { type: 'slider', xAxisIndex: [0, 1], bottom: 4, height: 18, borderColor: '#dce8e1', fillerColor: '#d5eee4' }],
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: '#fff', borderColor: '#dce8e1' },
     series } as EChartsOption
 }
