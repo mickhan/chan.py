@@ -14,7 +14,7 @@ from web.backend.schemas import InstrumentOption, PeriodCapability
 class AkShareAdapter:
     source_id = "akshare"
     chan_data_source = DATA_SRC.AKSHARE
-    _stock_periods = ("1d", "1w", "1mo")
+    _stock_periods = ("1d", "1w")
 
     def __init__(self, catalog_loader: Callable[[], list[InstrumentOption]] | None = None,
                  api_cls=None, catalog_cache: CatalogCache | None = None):

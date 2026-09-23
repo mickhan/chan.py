@@ -15,8 +15,8 @@ from web.backend.schemas import InstrumentOption, PeriodCapability
 class BaoStockAdapter:
     source_id = "baostock"
     chan_data_source = DATA_SRC.BAO_STOCK
-    _stock_periods = ("5m", "15m", "30m", "60m", "1d", "1w", "1mo")
-    _index_periods = ("1d", "1w", "1mo")
+    _stock_periods = ("5m", "30m", "1d", "1w")
+    _index_periods = ("1d", "1w")
 
     def __init__(self, catalog_loader: Callable[[], list[InstrumentOption]] | None = None, api_cls=None,
                  metadata_loader: Callable[[str], date | None] | None = None,

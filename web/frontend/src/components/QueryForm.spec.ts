@@ -90,3 +90,19 @@ describe('fund choices', () => {
     expect(wrapper.get('#adjustment').findAll('option').map(x => x.text())).toEqual(['不复权'])
   })
 })
+
+describe('period defaults', () => {
+  it('selects 30m when available and falls back for daily-only instruments', async () => {
+    const stock = { market: 'cn', instrument: 'sh.600000', name: '浦发银行', exchange: 'sh', kind: 'stock' } as const
+    const lof = { market: 'cn', instrument: 'sz.160706', name: '沪深300LOF', exchange: 'sz', kind: 'lof' } as const
+    const periods: CapabilityResponse = { market: 'cn', sources: ['fixture'], periods: [
+      { market: 'cn', source: 'fixture', kind: 'stock', period: '5m', adjustments: ['none'], first_available: null, last_available: null, max_bars: 5000, instrument: null },
+      { market: 'cn', source: 'fixture', kind: 'stock', period: '30m', adjustments: ['none'], first_available: null, last_available: null, max_bars: 5000, instrument: null },
+      { market: 'cn', source: 'fixture', kind: 'lof', period: '1d', adjustments: ['none'], first_available: null, last_available: null, max_bars: 5000, instrument: null },
+    ] }
+    const wrapper = mount(QueryForm, { props: { capabilities: periods, selectedInstrument: stock, busy: false } })
+    expect((wrapper.get('#period').element as HTMLSelectElement).value).toBe('30m')
+    await wrapper.setProps({ selectedInstrument: lof })
+    expect((wrapper.get('#period').element as HTMLSelectElement).value).toBe('1d')
+  })
+})

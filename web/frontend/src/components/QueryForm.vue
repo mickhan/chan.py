@@ -16,7 +16,7 @@ const options = computed(() => (props.capabilities?.periods ?? []).filter(item =
 const periods = computed(() => [...new Set(options.value.map(item => item.period))])
 const currentCapability = computed(() => options.value.find(item => item.period === period.value))
 const adjustments = computed(() => currentCapability.value?.adjustments ?? [])
-watch(periods, value => { if (!value.includes(period.value)) period.value = value[0] ?? '' }, { immediate: true })
+watch(periods, value => { if (!value.includes(period.value)) period.value = value.includes('30m') ? '30m' : value[0] ?? '' }, { immediate: true })
 watch(adjustments, value => { if (!value.includes(adjustment.value)) adjustment.value = value[0] ?? '' }, { immediate: true })
 watch(currentCapability, value => {
   if (!value) return
