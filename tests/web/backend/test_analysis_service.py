@@ -78,6 +78,27 @@ def test_large_gap_before_first_bar_is_unavailable_history():
         service.analyze(request())
 
 
+def test_history_error_exposes_actual_first_date_for_companion_range_clipping():
+    registry, _, service = setup([bar(8, 10), bar(9, 11)])
+    client = TestClient(create_app(registry, service))
+    response = client.post('/api/v1/analysis', json=request().model_dump(mode='json'))
+    assert response.status_code == 400
+    assert response.json()['code'] == 'DATE_RANGE_UNAVAILABLE'
+    assert response.json()['first_available'] == '2026-09-08'
+    clipped = {**request().model_dump(mode='json'), 'begin_time': response.json()['first_available']}
+    retry = client.post('/api/v1/analysis', json=clipped)
+    assert retry.status_code == 200
+    assert retry.json()['meta']['bar_count'] == 2
+
+
+def test_listing_error_exposes_known_listing_date():
+    registry, provider, service = setup()
+    provider.available_since.return_value = date(2026, 9, 8)
+    response = TestClient(create_app(registry, service)).post('/api/v1/analysis', json=request().model_dump(mode='json'))
+    assert response.json()['first_available'] == '2026-09-08'
+    provider.fetch_klines.assert_not_called()
+
+
 def test_even_short_prelisting_gap_is_unavailable():
     from web.backend.providers.errors import DateRangeUnavailableError
     _, _, service = setup([bar(8, 10), bar(9, 11)])

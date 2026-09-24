@@ -20,7 +20,7 @@ def create_app(registry, analysis_service) -> FastAPI:
         mapped = map_analysis_error(error)
         status = {'UNSUPPORTED_PERIOD': 400, 'DATE_RANGE_UNAVAILABLE': 400,
                   'SOURCE_TIMEOUT': 504, 'SOURCE_ERROR': 502}[mapped.code]
-        return JSONResponse(status_code=status, content=mapped.model_dump(exclude_none=True))
+        return JSONResponse(status_code=status, content=mapped.model_dump(mode='json', exclude_none=True))
     app.state.registry = registry
     app.state.analysis_service = analysis_service
     app.include_router(router, prefix="/api/v1")

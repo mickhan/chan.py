@@ -25,7 +25,8 @@ def map_analysis_error(error: Exception) -> ErrorResponse:
     if isinstance(error, (ProviderError, AnalysisFailure)):
         message = '行情数据源读取失败，请稍后重试' if isinstance(error, SourceDataError) else error.message
         return ErrorResponse(code=error.code, message=message,
-                             supported_options=getattr(error, 'supported_options', None))
+                             supported_options=getattr(error, 'supported_options', None),
+                             first_available=getattr(error, 'first_available', None))
     if isinstance(error, CChanException):
         return ErrorResponse(code='ANALYSIS_ERROR', message='缠论计算失败，请调整标的或时间范围后重试')
     return ErrorResponse(code='ANALYSIS_ERROR', message='分析失败，请稍后重试')
@@ -46,7 +47,7 @@ class AnalysisService:
         with self.registry.guard(provider):
             available_since = getattr(provider, 'available_since', lambda _code: None)(request.instrument)
             if available_since and request.begin_time < available_since:
-                raise DateRangeUnavailableError('请求开始日期早于标的上市日期')
+                raise DateRangeUnavailableError('请求开始日期早于标的上市日期', first_available=available_since)
             if self.cache is None:
                 klines = provider.fetch_klines(request, self.max_bars)
             else:
@@ -62,7 +63,7 @@ class AnalysisService:
             with self.registry.guard_source('baostock'):
                 missing = self.calendar_checker(request.begin_time, first_date, request.period)
             if missing:
-                raise DateRangeUnavailableError('请求开始日期早于数据源可提供的历史范围')
+                raise DateRangeUnavailableError('请求开始日期早于数据源可提供的历史范围', first_available=first_date)
         kl_type = provider.period_to_kl_type(request.period)
         autype = provider.adjustment_to_autype(request.adjustment)
         try:

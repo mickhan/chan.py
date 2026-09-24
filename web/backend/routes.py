@@ -38,4 +38,4 @@ def analyze(request_body: AnalysisRequest, request: Request):
                   "DATE_RANGE_UNAVAILABLE": 400, "NO_DATA": 404,
                   "SOURCE_TIMEOUT": 504, "SOURCE_ERROR": 502,
                   "ANALYSIS_ERROR": 500}[error.code]
-        return JSONResponse(status_code=status, content=error.model_dump(exclude_none=True))
+        return JSONResponse(status_code=status, content=error.model_dump(mode='json', exclude_none=True))

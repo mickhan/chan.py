@@ -1,3 +1,6 @@
+from datetime import date
+
+
 class ProviderError(Exception):
     code = "SOURCE_ERROR"
 
@@ -13,6 +16,10 @@ class UnsupportedPeriodError(ProviderError):
 
 class DateRangeUnavailableError(ProviderError):
     code = "DATE_RANGE_UNAVAILABLE"
+
+    def __init__(self, message: str, *, first_available: date | None = None):
+        super().__init__(message)
+        self.first_available = first_available
 
 
 class SourceDataError(ProviderError):

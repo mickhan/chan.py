@@ -8,11 +8,17 @@ import ChartStatus from './components/ChartStatus.vue'
 import ChartView from './chart/ChartView.vue'
 import LayerToggles from './components/LayerToggles.vue'
 import { allLayersVisible, type LayerVisibility } from './chart/buildChartOption'
+import { buildChartRequests, type ChartRequest } from './chart/multiPeriod'
 const capabilities = ref<CapabilityResponse | null>(null)
 const selectedInstrument = ref<InstrumentOption | null>(null)
 const suggestions = ref<InstrumentOption[]>([])
 const recentInstruments = ref<InstrumentOption[]>([])
-const response = ref<ChartResponse | null>(null)
+type ChartState = 'idle' | 'loading' | 'empty' | 'error'
+interface ChartPanel extends ChartRequest { response: ChartResponse | null; state: ChartState }
+const charts = ref<ChartPanel[]>([])
+const analyzedName = ref('')
+const analyzedPeriod = ref('')
+let analysisToken = 0
 const state = ref<'idle' | 'loading' | 'empty' | 'error'>('idle')
 const message = ref('')
 const busy = ref(false)
@@ -29,18 +35,51 @@ async function pick(option: InstrumentOption) {
   try { capabilities.value = await fetchCapabilities('cn', option.instrument) }
   catch (error) { state.value = 'error'; message.value = (error as Error).message }
 }
-function clear() { selectedInstrument.value = null; response.value = null; state.value = 'idle'; void fetchCapabilities('cn').then(value => capabilities.value = value) }
+function clear() {
+  ++analysisToken; busy.value = false; selectedInstrument.value = null; charts.value = []; state.value = 'idle'
+  void fetchCapabilities('cn').then(value => capabilities.value = value).catch(error => { state.value = 'error'; message.value = (error as Error).message })
+}
 async function analyze(request: AnalysisRequest) {
-  if (busy.value) return
+  if (busy.value || !selectedInstrument.value || !capabilities.value) return
+  const token = ++analysisToken
   busy.value = true; state.value = 'loading'; message.value = ''
   const analyzedInstrument = selectedInstrument.value?.instrument === request.instrument ? selectedInstrument.value : null
+  analyzedName.value = analyzedInstrument?.name ?? request.instrument
+  analyzedPeriod.value = request.period
   try {
-    response.value = await analyzeChart(request)
-    state.value = response.value.candles.length ? 'idle' : 'empty'
-    if (response.value.candles.length && analyzedInstrument) recentInstruments.value = rememberInstrument(analyzedInstrument)
+    charts.value = buildChartRequests(request, capabilities.value.periods, selectedInstrument.value.kind)
+      .map(chart => ({ ...chart, response: null, state: chart.request ? 'loading' : 'empty' }))
+  } catch {
+    charts.value = []; busy.value = false; state.value = 'error'; message.value = '无法计算图表时间范围，请检查开始和结束日期'
+    return
   }
-  catch (error) { response.value = null; state.value = (error instanceof ApiError && error.code === 'NO_DATA') ? 'empty' : 'error'; message.value = (error as Error).message }
-  finally { busy.value = false }
+  await Promise.all(charts.value.map(async (panel) => {
+    if (!panel.request) return
+    try {
+      let response: ChartResponse
+      try {
+        response = await analyzeChart(panel.request)
+      } catch (error) {
+        if (token !== analysisToken) return
+        const first = error instanceof ApiError ? error.firstAvailable : undefined
+        if (panel.period === request.period || !(error instanceof ApiError) || error.code !== 'DATE_RANGE_UNAVAILABLE' ||
+          !first || !/^\d{4}-\d{2}-\d{2}$/.test(first) || !Number.isFinite(Date.parse(first)) ||
+          first <= panel.request.begin_time || first > panel.request.end_time) throw error
+        panel.request = { ...panel.request, begin_time: first }
+        panel.message = `已按可用历史缩短范围：从 ${first} 开始`
+        response = await analyzeChart(panel.request)
+      }
+      if (token !== analysisToken) return
+      panel.response = response
+      panel.state = response.candles.length ? 'idle' : 'empty'
+      if (panel.period === request.period && response.candles.length && analyzedInstrument) recentInstruments.value = rememberInstrument(analyzedInstrument)
+    } catch (error) {
+      if (token !== analysisToken) return
+      panel.state = error instanceof ApiError && error.code === 'NO_DATA' ? 'empty' : 'error'
+      panel.message = (error as Error).message
+    }
+  }))
+  if (token === analysisToken) { busy.value = false; state.value = 'idle' }
 }
 </script>
 <template>
@@ -48,9 +87,19 @@ async function analyze(request: AnalysisRequest) {
     <main><section class="hero"><div><p class="eyebrow">A-SHARE MARKET · CHAN THEORY</p><h1>让走势结构，<br/><em>清晰可见。</em></h1><p class="hero-description">选择标的与时间范围，探索 K 线、笔、线段、中枢和买卖点。</p></div><div class="hero-art"><div class="art-grid"></div><div class="art-line"></div><span>走势 · 结构 · 决策</span></div></section>
       <section class="workbench"><div class="section-heading"><div><p class="eyebrow">WORKSPACE / 01</p><h2>行情分析</h2></div><span class="section-note">数据时间 · Asia/Shanghai</span></div>
         <QueryForm :capabilities="capabilities" :selected-instrument="selectedInstrument" :suggestions="suggestions" :recent-instruments="recentInstruments" :busy="busy" @search="search" @pick="pick" @clear="clear" @submit="analyze" />
-        <div class="result-panel"><div class="result-heading"><div><span class="result-kicker">CHART VIEW</span><h3>{{ response ? selectedInstrument?.name : '缠论结构图' }}</h3></div><span v-if="response" class="result-meta">{{ response.meta.bar_count }} 根 K 线 · {{ response.meta.source }}<br/>{{ response.meta.first_bar.replace('T', ' ').slice(0, 16) }} 至 {{ response.meta.last_bar.replace('T', ' ').slice(0, 16) }}</span></div>
-          <ChartStatus v-if="!response || state !== 'idle'" :state="state" :message="message" />
-          <template v-else><LayerToggles v-model="visibleLayers" /><ChartView :response="response" :visible-layers="visibleLayers" /></template>
+        <div class="result-panel"><div class="result-heading"><div><span class="result-kicker">CHART VIEW</span><h3>{{ charts.length ? analyzedName : '缠论结构图' }}</h3></div><span v-if="charts.length" class="result-meta">三级别分析 · {{ analyzedPeriod }}</span></div>
+          <ChartStatus v-if="!charts.length" :state="state" :message="message" />
+          <template v-else>
+            <LayerToggles v-model="visibleLayers" />
+            <section v-for="(panel, index) in charts" :key="panel.period" class="period-panel" :class="{ 'selected-period': panel.period === analyzedPeriod }" :aria-label="`${panel.period} 图表`">
+              <div class="result-heading"><div><h4>{{ panel.period }} · {{ ['低一级别', '所选周期', '高一级别'][index] }}</h4><p v-if="panel.request" class="period-range">分析范围：{{ panel.request.begin_time }} 至 {{ panel.request.end_time }}</p></div>
+                <span v-if="panel.response?.candles.length" class="result-meta">{{ panel.response.meta.bar_count }} 根 K 线 · {{ panel.response.meta.source }}<br/>{{ panel.response.meta.first_bar.replace('T', ' ').slice(0, 16) }} 至 {{ panel.response.meta.last_bar.replace('T', ' ').slice(0, 16) }}</span>
+              </div>
+              <p v-if="panel.response && panel.state === 'idle' && panel.message" class="period-range">{{ panel.message }}</p>
+              <ChartView v-if="panel.response && panel.state === 'idle'" :response="panel.response" :visible-layers="visibleLayers" />
+              <ChartStatus v-else :state="panel.state" :message="panel.message" />
+            </section>
+          </template>
         </div>
       </section></main><footer>CHAN.PY · PERSONAL MARKET WORKSPACE</footer></div>
 </template>

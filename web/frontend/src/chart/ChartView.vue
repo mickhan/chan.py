@@ -12,7 +12,7 @@ function resize() { chart?.resize() }
 function currentRange(): { start: number; end: number } {
   const zoom = chart?.getOption().dataZoom
   const first = Array.isArray(zoom) ? zoom[0] : zoom
-  return { start: Number(first?.start ?? 50), end: Number(first?.end ?? 100) }
+  return { start: Number(first?.start ?? 0), end: Number(first?.end ?? 100) }
 }
 function zoom(direction: 'in' | 'out') {
   if (!chart) return

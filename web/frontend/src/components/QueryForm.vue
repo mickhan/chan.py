@@ -13,7 +13,7 @@ const adjustment = ref('')
 const options = computed(() => (props.capabilities?.periods ?? []).filter(item =>
   props.selectedInstrument && item.kind === props.selectedInstrument.kind &&
   (!item.instrument || item.instrument === props.selectedInstrument.instrument)))
-const periods = computed(() => [...new Set(options.value.map(item => item.period))])
+const periods = computed(() => ['30m', '1d'].filter(period => options.value.some(item => item.period === period)))
 const currentCapability = computed(() => options.value.find(item => item.period === period.value))
 const adjustments = computed(() => currentCapability.value?.adjustments ?? [])
 watch(periods, value => { if (!value.includes(period.value)) period.value = value.includes('30m') ? '30m' : value[0] ?? '' }, { immediate: true })
@@ -25,6 +25,7 @@ watch(currentCapability, value => {
   if (start.value > end.value && value.first_available) start.value = value.first_available
 }, { immediate: true })
 const canSubmit = computed(() => !!props.selectedInstrument && !!period.value && !!adjustment.value &&
+  Number.isFinite(Date.parse(start.value)) && Number.isFinite(Date.parse(end.value)) &&
   start.value <= end.value && !props.busy &&
   (!currentCapability.value?.first_available || start.value >= currentCapability.value.first_available) &&
   (!currentCapability.value?.last_available || end.value <= currentCapability.value.last_available))
@@ -81,6 +82,7 @@ function selectRange(range: '30d' | 'quarter' | 'year') {
       <button type="button" aria-label="最近1季度" :disabled="!currentCapability" @click="selectRange('quarter')">最近 1 季度</button>
       <button type="button" aria-label="最近1年" :disabled="!currentCapability" @click="selectRange('year')">最近 1 年</button>
     </div>
+    <p class="range-hint">日期用于所选周期；低一级别自动缩短范围，高一级别自动延长范围。</p>
     <div v-if="!selectedInstrument && !search && recentInstruments?.length" class="quick-picks recent-instruments" aria-label="最近使用的标的">
       <span>最近分析</span>
       <button v-for="option in recentInstruments" :key="option.instrument" type="button" @click="pick(option)">{{ option.name }} <small>{{ option.instrument }}</small> <span class="instrument-kind">{{ kindLabel(option.kind) }}</span></button>

@@ -124,3 +124,4 @@ class ErrorResponse(StrictModel):
     code: str
     message: str
     supported_options: list[str] | None = None
+    first_available: date | None = None

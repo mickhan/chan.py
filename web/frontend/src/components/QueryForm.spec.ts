@@ -18,6 +18,13 @@ describe('QueryForm', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
+  it.each(['begin_time', 'end_time'])('rejects an empty %s before calculating companion ranges', async name => {
+    const wrapper = mount(QueryForm, { props: { capabilities, selectedInstrument: { market: 'cn', instrument: 'sh.000001', name: '上证指数', exchange: 'sh', kind: 'index' }, busy: false } })
+    await wrapper.get(`[name="${name}"]`).setValue('')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
 })
 
 describe('reported availability', () => {
@@ -101,6 +108,7 @@ describe('period defaults', () => {
       { market: 'cn', source: 'fixture', kind: 'lof', period: '1d', adjustments: ['none'], first_available: null, last_available: null, max_bars: 5000, instrument: null },
     ] }
     const wrapper = mount(QueryForm, { props: { capabilities: periods, selectedInstrument: stock, busy: false } })
+    expect(wrapper.get('#period').findAll('option').map(x => x.text())).toEqual(['30m'])
     expect((wrapper.get('#period').element as HTMLSelectElement).value).toBe('30m')
     await wrapper.setProps({ selectedInstrument: lof })
     expect((wrapper.get('#period').element as HTMLSelectElement).value).toBe('1d')

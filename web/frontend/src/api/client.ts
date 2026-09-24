@@ -1,7 +1,7 @@
 import type { AnalysisRequest, CapabilityResponse, ChartResponse, InstrumentOption } from './types'
 
 export class ApiError extends Error {
-  constructor(public code: string, message: string, public supportedOptions?: string[]) { super(message) }
+  constructor(public code: string, message: string, public supportedOptions?: string[], public firstAvailable?: string) { super(message) }
 }
 
 async function read<T>(url: string, init?: RequestInit): Promise<T> {
@@ -11,7 +11,7 @@ async function read<T>(url: string, init?: RequestInit): Promise<T> {
   let body: any
   try { body = await response.json() }
   catch { throw new ApiError('SOURCE_ERROR', '服务返回了无法读取的数据') }
-  if (!response.ok) throw new ApiError(body.code ?? 'SOURCE_ERROR', body.message ?? '请求失败', body.supported_options)
+  if (!response.ok) throw new ApiError(body.code ?? 'SOURCE_ERROR', body.message ?? '请求失败', body.supported_options, body.first_available)
   return body as T
 }
 
