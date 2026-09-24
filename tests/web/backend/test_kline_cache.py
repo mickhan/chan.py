@@ -34,7 +34,7 @@ def test_persists_bars_and_only_fetches_missing_ranges(tmp_path):
 
 
 def test_current_day_is_refreshed_and_failed_fetch_does_not_mark_coverage(tmp_path):
-    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: date(2026, 9, 5))
+    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: date(2026, 9, 5), refresh_seconds=0)
     item = request(date(2026, 9, 4), date(2026, 9, 5))
     cache.get('fixture', item, 5000, lambda *_: [bar(4, 4), bar(5, 5)])
     result = cache.get('fixture', item, 5000, lambda *_: [bar(4, 4), bar(5, 50)])
@@ -62,7 +62,7 @@ def test_cache_keys_include_adjustment_and_source(tmp_path):
 
 
 def test_refresh_removes_bars_no_longer_returned_by_source(tmp_path):
-    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: date(2026, 9, 5))
+    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: date(2026, 9, 5), refresh_seconds=0)
     item = request(date(2026, 9, 4), date(2026, 9, 5))
     cache.get('fixture', item, 5000, lambda *_: [bar(4, 4), bar(5, 5)])
     rows = cache.get('fixture', item, 5000, lambda *_: [])
@@ -86,7 +86,7 @@ def test_future_dates_are_not_marked_covered(tmp_path):
 
 def test_recent_past_date_is_refreshed(tmp_path):
     clock = [date(2026, 9, 5)]
-    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: clock[0])
+    cache = KlineCache(tmp_path / 'market.sqlite3', today=lambda: clock[0], refresh_seconds=0)
     item = request(date(2026, 9, 4), date(2026, 9, 5))
     cache.get('fixture', item, 5000, lambda *_: [bar(4, 4), bar(5, 5)])
     clock[0] = date(2026, 9, 6)
@@ -108,3 +108,22 @@ def test_truncated_fetch_does_not_claim_full_range(tmp_path):
     second = cache.get('fixture', item, 10, fetch)
     assert len(second) == 10
     assert len(calls) == 2
+
+
+def test_recent_history_is_calibrated_only_after_cooldown_even_after_restart(tmp_path):
+    path = tmp_path / 'market.sqlite3'
+    clock = [100000.0]
+    calls = []
+    def fetch(part, _):
+        calls.append(part)
+        return [bar(23, 10 + len(calls))]
+    item = request(date(2026, 9, 23), date(2026, 9, 23))
+    cache = KlineCache(path, today=lambda: date(2026, 9, 24), now=lambda: clock[0])
+    cache.get('baostock', item, 5000, fetch)
+    restarted = KlineCache(path, today=lambda: date(2026, 9, 24), now=lambda: clock[0])
+    restarted.get('baostock', item, 5000, fetch)
+    assert len(calls) == 1
+    clock[0] += 6 * 3600 + 1
+    rows = restarted.get('baostock', item, 5000, fetch)
+    assert len(calls) == 2
+    assert rows[-1].close == 12.5

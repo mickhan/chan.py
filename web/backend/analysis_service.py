@@ -34,12 +34,13 @@ def map_analysis_error(error: Exception) -> ErrorResponse:
 
 class AnalysisService:
     def __init__(self, registry, chan_factory=CChan, max_bars: int = 5000,
-                 calendar_checker=has_missing_trading_period, cache=None):
+                 calendar_checker=has_missing_trading_period, cache=None, market_data=None):
         self.registry = registry
         self.chan_factory = chan_factory
         self.max_bars = max_bars
         self.calendar_checker = calendar_checker
         self.cache = cache
+        self.market_data = market_data
 
     def analyze(self, request):
         provider = self.registry.resolve(request.market, request.instrument,
@@ -48,11 +49,17 @@ class AnalysisService:
             available_since = getattr(provider, 'available_since', lambda _code: None)(request.instrument)
             if available_since and request.begin_time < available_since:
                 raise DateRangeUnavailableError('请求开始日期早于标的上市日期', first_available=available_since)
-            if self.cache is None:
+            if self.market_data is not None:
+                klines = None
+            elif self.cache is None:
                 klines = provider.fetch_klines(request, self.max_bars)
             else:
                 klines = self.cache.get(provider.source_id, request, self.max_bars,
                                         provider.fetch_klines)
+        market = None
+        if self.market_data is not None:
+            market = self.market_data.load(request, provider, self.max_bars)
+            klines = market.rows
         if not klines:
             raise AnalysisFailure('NO_DATA', '所选区间没有 K 线数据')
         if len(klines) > self.max_bars:
@@ -71,7 +78,15 @@ class AnalysisService:
                                      config=CChanConfig(), autype=autype,
                                      defer_load=True)
             chan.trigger_load({kl_type: klines})
-            return serialize_chan(chan, request, provider.source_id, kl_type)
+            response = serialize_chan(chan, request, market.source if market else provider.source_id, kl_type)
+            if market:
+                response.meta.data_status = market.status
+                response.meta.fetched_at = market.fetched_at.isoformat() if market.fetched_at else None
+                response.meta.warnings = market.warnings
+                for candle in response.candles:
+                    candle.is_closed = candle.time not in market.provisional
+                response.meta.provisional_count = sum(not candle.is_closed for candle in response.candles)
+            return response
         except Exception:
             _log.exception('Chan analysis failed for %s %s', request.instrument, request.period)
             raise

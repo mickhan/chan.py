@@ -40,3 +40,22 @@ describe('ChartView zoom controls', () => {
     wrapper.unmount()
   })
 })
+
+const bars = (count: number): ChartResponse => ({ ...response,
+  candles: Array.from({ length: count }, (_, index) => ({ ...response.candles[0]!, time: `2026-09-${String(index + 1).padStart(2, '0')}T10:00:00+08:00` })),
+})
+it.each([
+  { start: 50, end: 100, expectedStart: 60, expectedEnd: 100 },
+  { start: 25, end: 75, expectedStart: 20, expectedEnd: 60 },
+])('keeps candle positions on refresh: $start–$end', async ({ start, end, expectedStart, expectedEnd }) => {
+  chart.getOption.mockReturnValue({ dataZoom: [{ start, end }] })
+  const wrapper = mount(ChartView, { props: { response: bars(9), visibleLayers: allLayersVisible } })
+  chart.dispose.mockClear()
+  await wrapper.setProps({ response: bars(11) })
+  const [option, settings] = chart.setOption.mock.lastCall as any
+  expect(option.dataZoom[0]).toMatchObject({ start: expectedStart, end: expectedEnd })
+  expect(option.series[0].data).toHaveLength(11)
+  expect(settings).toEqual({ notMerge: false, replaceMerge: ['series'] })
+  expect(chart.dispose).not.toHaveBeenCalled()
+  wrapper.unmount()
+})

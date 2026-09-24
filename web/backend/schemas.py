@@ -58,6 +58,7 @@ class Candle(StrictModel):
     low: float
     close: float
     volume: float
+    is_closed: bool = True
 
 
 class MacdPoint(StrictModel):
@@ -109,6 +110,10 @@ class AnalysisMeta(StrictModel):
     first_bar: str
     last_bar: str
     bar_count: int
+    data_status: Literal['historical', 'live', 'delayed'] = 'historical'
+    fetched_at: str | None = None
+    provisional_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ChartResponse(StrictModel):

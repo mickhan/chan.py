@@ -4,6 +4,14 @@ import type { ChartResponse } from '../api/types'
 const t0 = '2026-09-01T10:00:00+08:00', t1 = '2026-09-01T10:30:00+08:00'
 const fixture: ChartResponse = { schema_version: 1, request: { market: 'cn', instrument: 'sh.000001', period: '30m', begin_time: '2026-09-01', end_time: '2026-09-02', adjustment: 'none' }, meta: { instrument: 'sh.000001', period: '30m', source: 'fixture', first_bar: t0, last_bar: t1, bar_count: 2 }, candles: [{ time: t0, open: 10, close: 12, low: 9, high: 13, volume: 100 }, { time: t1, open: 12, close: 11, low: 10, high: 14, volume: 120 }], indicators: { macd: [{ time: t0, diff: 1, dea: .5, histogram: 1 }, { time: t1, diff: .8, dea: .6, histogram: .4 }] }, overlays: { bi: [{ start_time: t0, start_price: 9, end_time: t1, end_price: 14, direction: 'up', is_sure: true }], segments: [], zones: [{ start_time: t0, end_time: t1, lower: 10, upper: 12 }], buy_sell_points: [{ time: t1, price: 14, side: 'buy', type: '1', bi_is_sure: true }] } }
 describe('chart options', () => {
+  it('marks a forming candle visibly without changing its OHLC values', () => {
+    const response = { ...fixture, candles: fixture.candles.map((c, index) => ({ ...c, is_closed: index === 0 })) }
+    const option = buildChartOption(response, allLayersVisible) as any
+    const candles = option.series.find((series: any) => series.id === 'candles')
+    expect(candles.data[1].value).toEqual([12, 11, 10, 14])
+    expect(candles.markPoint.data[0].coord).toEqual([t1, 14])
+    expect(candles.markPoint.label.formatter).toBe('未收盘')
+  })
   it('uses candle order and response timestamps', () => {
     const option = buildChartOption(fixture, allLayersVisible) as any
     expect(option.series.find((s: any) => s.id === 'candles').data[0]).toEqual([10, 12, 9, 13])
@@ -11,12 +19,10 @@ describe('chart options', () => {
     expect(option.dataZoom).toBeDefined()
     expect(option.axisPointer).toBeDefined()
   })
-  it('uses wheel movement for horizontal panning without wheel zoom', () => {
+  it('leaves mouse wheel scrolling to the page', () => {
     const option = buildChartOption(fixture, allLayersVisible) as any
-    const inside = option.dataZoom.find((item: any) => item.type === 'inside')
-    expect(inside.zoomOnMouseWheel).toBe(false)
-    expect(inside.moveOnMouseWheel).toBe(true)
-    expect(inside.xAxisIndex).toEqual([0, 1])
+    expect(option.dataZoom.some((item: any) => item.type === 'inside')).toBe(false)
+    expect(option.dataZoom[0]).toMatchObject({ type: 'slider', xAxisIndex: [0, 1] })
   })
   it('maps overlays and toggles without changing candles', () => {
     const option = buildChartOption(fixture, allLayersVisible) as any

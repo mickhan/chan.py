@@ -32,8 +32,12 @@ def _default_app() -> FastAPI:
     from .analysis_service import AnalysisService
     from .kline_cache import KlineCache
     from .providers.registry import default_registry
+    from .live_quotes import SinaLiveQuotes
+    from .market_data import MarketDataService
     registry = default_registry()
-    return create_app(registry, AnalysisService(registry, cache=KlineCache()))
+    cache = KlineCache()
+    market_data = MarketDataService(registry, cache, SinaLiveQuotes(cache.path))
+    return create_app(registry, AnalysisService(registry, cache=cache, market_data=market_data))
 
 
 app = _default_app()

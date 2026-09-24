@@ -12,7 +12,12 @@ export function buildChartOption(response: ChartResponse, visible: LayerVisibili
       data: items.map(item => [{ coord: [item.start_time, item.start_price] }, { coord: [item.end_time, item.end_price] }]) }
   })
   const series: any[] = [{ id: 'candles', name: 'K 线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0,
-    data: response.candles.map(c => [c.open, c.close, c.low, c.high]), tooltip: { show: false },
+    data: response.candles.map(c => c.is_closed === false
+      ? { value: [c.open, c.close, c.low, c.high], itemStyle: { opacity: .6, borderType: 'dashed' } }
+      : [c.open, c.close, c.low, c.high]), tooltip: { show: false },
+    markPoint: { symbol: 'circle', symbolSize: 5, itemStyle: { color: '#b78332' },
+      label: { show: true, formatter: '未收盘', position: 'left', fontSize: 10, color: '#9b6b27' },
+      data: response.candles.filter(c => c.is_closed === false).map(c => ({ coord: [c.time, c.high] })) },
     itemStyle: { color: '#d95d55', color0: '#2ba880', borderColor: '#d95d55', borderColor0: '#2ba880' } }]
   if (visible.bi) series.push(lines('bi', response.overlays.bi, '#db9e4d'))
   if (visible.segments) series.push(lines('segments', response.overlays.segments, '#3e69aa'))
@@ -43,7 +48,7 @@ export function buildChartOption(response: ChartResponse, visible: LayerVisibili
     yAxis: [{ type: 'value', scale: true, boundaryGap: ['10%', '10%'], splitLine: { lineStyle: { color: '#edf2ef' } }, axisLabel: { color: '#779087' } },
       { type: 'value', scale: true, gridIndex: 1, splitLine: { lineStyle: { color: '#edf2ef' } }, axisLabel: { color: '#779087' } }],
     axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
-    dataZoom: [{ type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: true }, { type: 'slider', xAxisIndex: [0, 1], start: 0, end: 100, bottom: 4, height: 18, borderColor: '#dce8e1', fillerColor: '#d5eee4' }],
+    dataZoom: [{ type: 'slider', xAxisIndex: [0, 1], start: 0, end: 100, bottom: 4, height: 18, borderColor: '#dce8e1', fillerColor: '#d5eee4' }],
     tooltip: { trigger: 'item', show: visible.buySellPoints, backgroundColor: '#fff', borderColor: '#dce8e1' },
     series } as EChartsOption
 }

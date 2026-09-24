@@ -8,7 +8,10 @@ test('searches, analyzes, toggles layers, and preserves form on no data', async 
   let empty = false
   await page.route('**/api/v1/analysis', route => empty
     ? route.fulfill({ status: 404, json: { code: 'NO_DATA', message: '所选区间没有 K 线数据' } })
-    : route.fulfill({ json: fixture }))
+    : route.fulfill({ json: { ...fixture,
+      candles: fixture.candles.map((c: any, i: number) => ({ ...c, is_closed: i === 0 })),
+      meta: { ...fixture.meta, data_status: 'live', fetched_at: '2026-09-01T10:05:00+08:00', provisional_count: 1, warnings: [] },
+    } }))
   await page.goto('/')
   await page.getByPlaceholder(/输入代码或名称/).fill('000001')
   await page.getByRole('button', { name: /上证指数.*sh.000001/ }).click()
@@ -18,6 +21,9 @@ test('searches, analyzes, toggles layers, and preserves form on no data', async 
   await page.getByRole('button', { name: '分析图表' }).click()
   await expect(page.getByRole('img', { name: '缠论 K 线图' })).toBeVisible()
   await expect(page.locator('canvas').first()).toBeVisible()
+  await expect(page.getByText('盘中行情', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 根未收盘 · 结构与买卖点可能变化')).toBeVisible()
+  await expect(page.getByText('最近取数：2026-09-01 10:05:00')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('button', { name: /上证指数.*sh.000001/ })).toBeVisible()
   await page.getByRole('button', { name: /上证指数.*sh.000001/ }).click()
@@ -60,6 +66,12 @@ test('renders all three periods, adapts ranges, and isolates a failed companion'
   await page.getByRole('button', { name: '分析图表' }).click()
   await expect(page.locator('.period-panel canvas')).toHaveCount(3)
   await expect(page.locator('.period-panel h4')).toHaveText(['5m · 低一级别', '30m · 所选周期', '1d · 高一级别'])
+  const canvas = page.locator('.period-panel canvas').first()
+  await canvas.scrollIntoViewIfNeeded()
+  await canvas.hover({ position: { x: 200, y: 150 } })
+  const beforeScroll = await page.evaluate(() => window.scrollY)
+  await page.mouse.wheel(0, 300)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(beforeScroll + 100)
   for (const panel of await page.locator('.period-panel').all()) {
     await expect(panel.locator('canvas')).toBeVisible()
     await panel.getByRole('button', { name: '放大时间范围' }).click()
@@ -71,7 +83,12 @@ test('renders all three periods, adapts ranges, and isolates a failed companion'
   await expect(page.locator('.period-panel h4')).toHaveText(['30m · 低一级别', '1d · 所选周期', '1w · 高一级别'])
   await expect(page.locator('.period-panel canvas')).toHaveCount(3)
   expect(requests.slice(3).map(request => request.begin_time)).toEqual(['2026-09-08', '2026-09-01', '2026-07-31'])
+  const originalCanvas = await page.locator('.period-panel canvas').first().elementHandle()
   failWeekly = true
+  await page.getByRole('button', { name: '刷新', exact: true }).click()
+  await expect(page.getByText('刷新失败，保留上次图表：周线行情暂时不可用')).toBeVisible()
+  await expect(page.locator('.period-panel canvas')).toHaveCount(3)
+  expect(await originalCanvas!.evaluate(node => node.isConnected)).toBe(true)
   await page.getByRole('button', { name: '分析图表' }).click()
   await expect(page.getByText('周线行情暂时不可用')).toBeVisible()
   await expect(page.locator('.period-panel canvas')).toHaveCount(2)

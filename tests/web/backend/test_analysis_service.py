@@ -131,3 +131,22 @@ def test_analysis_reuses_persisted_klines_after_service_restart(tmp_path):
 def test_default_app_enables_local_cache():
     from web.backend.app import app
     assert isinstance(app.state.analysis_service.cache, KlineCache)
+
+
+def test_analysis_reports_provisional_live_candles_and_freshness():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from web.backend.market_data import MarketData
+    registry, _, service = setup()
+    data = MarketData([bar(22,10),bar(23,11)], 'baostock+sina', status='live',
+        fetched_at=datetime(2026,9,23,10,1,tzinfo=ZoneInfo('Asia/Shanghai')),
+        provisional={'2026-09-23T00:00:00+08:00'}, warnings=['日线尚未收盘'])
+    market = Mock()
+    market.load.return_value = data
+    service = AnalysisService(registry, calendar_checker=lambda *_: False, market_data=market)
+    response = service.analyze(request())
+    assert response.meta.data_status == 'live'
+    assert response.meta.provisional_count == 1
+    assert response.meta.fetched_at == '2026-09-23T10:01:00+08:00'
+    assert response.candles[-1].is_closed is False
+    assert response.candles[0].is_closed is True

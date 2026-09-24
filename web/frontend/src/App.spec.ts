@@ -33,7 +33,15 @@ it('shows three independently loaded panels and keeps successful charts after a 
   expect(wrapper.findAllComponents({ name: 'ChartView' })).toHaveLength(2)
   expect(wrapper.get('.period-panel').text()).toContain('行情源超时')
   expect(requests.map(request => request.period)).toEqual(['5m', '30m', '1d'])
+  const retained = wrapper.findAllComponents({ name: 'ChartView' })[1]!.vm
   failDaily = true
+  await wrapper.get('.refresh-button').trigger('click')
+  expect(wrapper.findAllComponents({ name: 'ChartView' })).toHaveLength(2)
+  await flushPromises()
+  expect(wrapper.findAllComponents({ name: 'ChartView' })[1]!.vm).toBe(retained)
+  expect(wrapper.text()).toContain('刷新失败，保留上次图表：行情源超时')
+  expect(requests.slice(3)).toEqual(requests.slice(0, 3))
+  requests.splice(3)
   await wrapper.get('#period').setValue('1d')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
