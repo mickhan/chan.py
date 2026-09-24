@@ -12,8 +12,10 @@ python -m venv .venv
 .venv/bin/python -m pip install -r Script/requirements-web.txt
 npm --prefix web/frontend ci
 npm --prefix web/frontend run build
-.venv/bin/python -m web
+./start_web.sh
 ```
+
+脚本会从仓库根目录启动本机 HTTP 服务；从其他目录调用也可以。只启动 API 时前端构建可省略，脚本会提示首页尚未构建。
 
 打开 <http://127.0.0.1:8765/>。代码开发时，可同时运行 `npm --prefix web/frontend run dev`，Vite 会把 `/api` 请求代理到本机 Python 服务。
 

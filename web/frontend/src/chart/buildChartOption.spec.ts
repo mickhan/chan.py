@@ -29,3 +29,27 @@ describe('chart options', () => {
     expect(hidden.series.find((s: any) => s.id === 'candles')).toBeDefined()
   })
 })
+
+describe('buy/sell point presentation', () => {
+  it('labels points like the original plot and shows a tooltip only on points', () => {
+    const response: ChartResponse = {
+      ...fixture,
+      overlays: { ...fixture.overlays, buy_sell_points: [
+        { time: t0, price: 9.1234, side: 'buy', type: '1,2', bi_is_sure: true },
+        { time: t1, price: 14.01, side: 'sell', type: '3a', bi_is_sure: true },
+      ] },
+    }
+    const option = buildChartOption(response, allLayersVisible) as any
+    const points = option.series.find((series: any) => series.id === 'buySellPoints')
+    expect(points.data.map((point: any) => point.name)).toEqual(['b1,2', 's3a'])
+    expect(points.data.map((point: any) => point.label.formatter)).toEqual(['b1,2', 's3a'])
+    expect(points.data.every((point: any) => point.label.show === true)).toBe(true)
+    expect(points.data.map((point: any) => point.label.position)).toEqual(['bottom', 'top'])
+    expect(points.label.show).toBe(true)
+    expect(option.tooltip.trigger).toBe('item')
+    expect(points.tooltip.formatter({ data: points.data[0] })).toBe('b1,2<br/>价格：9.1234')
+    expect(points.tooltip.formatter({ data: points.data[1] })).toBe('s3a<br/>价格：14.01')
+    expect(option.series.filter((series: any) => series.id !== 'buySellPoints')
+      .every((series: any) => series.tooltip?.show === false)).toBe(true)
+  })
+})
